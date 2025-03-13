@@ -1,15 +1,4 @@
-//go:build cgo
-
 package watchmaker
-
-/*
-#include <stdint.h>
-struct iovec {
-	intptr_t iov_base;
-	size_t iov_len;
-};
-*/
-import "C"
 
 import (
 	"bytes"
@@ -20,7 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 const waitPidErrorMessage = "waitpid ret value: %d"
@@ -28,7 +18,7 @@ const waitPidErrorMessage = "waitpid ret value: %d"
 // If it's on 64-bit platform, `^uintptr(0)` will get a 64-bit number full of one.
 // After shifting right for 63-bit, only 1 will be left. Than we got 8 here.
 // If it's on 32-bit platform, After shifting nothing will be left. Than we got 4 here.
-const ptrSize = 4 << uintptr(^uintptr(0)>>63)
+const ptrSize = 4 << (^uintptr(0) >> 63)
 
 var threadRetryLimit = 10
 
@@ -232,21 +222,27 @@ func (p *TracedProgram) Mmap(length uint64, fd uint64) (uint64, error) {
 func (p *TracedProgram) ReadSlice(addr uint64, size uint64) (*[]byte, error) {
 	buffer := make([]byte, size)
 
-	localIov := C.struct_iovec{
-		iov_base: C.long(uintptr(unsafe.Pointer(&buffer[0]))),
-		iov_len:  C.ulong(size),
+	// constructs a local iovec (a description of a memory buffer)
+	localIov := []unix.Iovec{
+		{
+			Base: &buffer[0],
+			Len:  size,
+		},
 	}
 
-	remoteIov := C.struct_iovec{
-		iov_base: C.long(addr),
-		iov_len:  C.ulong(size),
+	// construct remote iovec (target process memory address and length)
+	remoteIov := []unix.RemoteIovec{
+		{
+			Base: uintptr(addr),
+			Len:  int(size),
+		},
 	}
 
-	_, _, errno := syscall.Syscall6(nrProcessVMReadv, uintptr(p.pid), uintptr(unsafe.Pointer(&localIov)), uintptr(1), uintptr(unsafe.Pointer(&remoteIov)), uintptr(1), uintptr(0))
-	if errno != 0 {
-		return nil, errno
+	// calling the ProcessVMReadv system call
+	_, err := unix.ProcessVMReadv(p.pid, localIov, remoteIov, 0)
+	if err != nil {
+		return nil, err
 	}
-	// TODO: check size and warn
 
 	return &buffer, nil
 }
@@ -255,21 +251,27 @@ func (p *TracedProgram) ReadSlice(addr uint64, size uint64) (*[]byte, error) {
 func (p *TracedProgram) WriteSlice(addr uint64, buffer []byte) error {
 	size := len(buffer)
 
-	localIov := C.struct_iovec{
-		iov_base: C.long(uintptr(unsafe.Pointer(&buffer[0]))),
-		iov_len:  C.ulong(size),
+	// construct a local iovec (pointing to the data we want to write)
+	localIov := []unix.Iovec{
+		{
+			Base: &buffer[0],
+			Len:  uint64(size),
+		},
 	}
 
-	remoteIov := C.struct_iovec{
-		iov_base: C.long(addr),
-		iov_len:  C.ulong(size),
+	// construct a remote iovec (the memory area to be written in the target process)
+	remoteIov := []unix.RemoteIovec{
+		{
+			Base: uintptr(addr),
+			Len:  size,
+		},
 	}
 
-	_, _, errno := syscall.Syscall6(nrProcessVMWritev, uintptr(p.pid), uintptr(unsafe.Pointer(&localIov)), uintptr(1), uintptr(unsafe.Pointer(&remoteIov)), uintptr(1), uintptr(0))
-	if errno != 0 {
-		return errno
+	// call ProcessVMWritev to write data to the target process memory
+	_, err := unix.ProcessVMWritev(p.pid, localIov, remoteIov, 0)
+	if err != nil {
+		return err
 	}
-	// TODO: check size and warn
 
 	return nil
 }
@@ -296,10 +298,10 @@ func (p *TracedProgram) PtraceWriteSlice(addr uint64, buffer []byte) error {
 	buffer = alignBuffer(buffer)
 
 	for wroteSize+ptrSize <= len(buffer) {
-		addr := uintptr(addr + uint64(wroteSize))
+		_addr := uintptr(addr + uint64(wroteSize))
 		data := buffer[wroteSize : wroteSize+ptrSize]
 
-		_, err := syscall.PtracePokeData(p.pid, addr, data)
+		_, err := syscall.PtracePokeData(p.pid, _addr, data)
 		if err != nil {
 			return fmt.Errorf("%T write to addr %x with %+v failed", err, addr, data)
 		}

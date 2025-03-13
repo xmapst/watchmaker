@@ -1,15 +1,16 @@
-//go:build cgo
-
 package watchmaker
 
-/*
-#define _GNU_SOURCE
-#include <sys/wait.h>
-#include <sys/uio.h>
-#include <errno.h>
-*/
-import "C"
+import "golang.org/x/sys/unix"
 
+const __WALL = 0x40000000
+
+// waitpid waits for the process with the specified pid to exit
+// and returns the pid of the exited process; returns -1 if an error occurs.
 func waitpid(pid int) int {
-	return int(C.waitpid(C.int(pid), nil, C.__WALL))
+	var status unix.WaitStatus
+	wpid, err := unix.Wait4(pid, &status, __WALL, nil)
+	if err != nil {
+		return -1
+	}
+	return wpid
 }
