@@ -57,11 +57,11 @@ func ReadMaps(pid int) ([]Entry, error) {
 		}
 
 		entries = append(entries, Entry{
-			startAddress,
-			endAddresses,
-			privilege,
-			paddingSize,
-			path,
+			StartAddress: startAddress,
+			EndAddress:   endAddresses,
+			Privilege:    privilege,
+			PaddingSize:  paddingSize,
+			Path:         path,
 		})
 	}
 

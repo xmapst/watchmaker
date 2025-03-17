@@ -38,12 +38,17 @@ func (p *TracedProgram) Pid() int {
 }
 
 func waitPid(pid int) error {
-	ret := waitpid(pid)
-	if ret == pid {
+	status := syscall.WaitStatus(0)
+	wpid, err := syscall.Wait4(pid, &status, 0, nil)
+	if err != nil {
+		return err
+	}
+
+	if wpid == pid {
 		return nil
 	}
 
-	return fmt.Errorf(waitPidErrorMessage, ret)
+	return fmt.Errorf(waitPidErrorMessage, wpid)
 }
 
 // Trace ptrace all threads of a process
