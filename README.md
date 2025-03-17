@@ -53,3 +53,4 @@ This project uses the following open-source software:
 
 * [Chaos-mesh](https://github.com/chaos-mesh/chaos-mesh) - Reference chaos-mesh's watchmaker component to simulate process time
 * [Libfaketime](https://github.com/wolfcw/libfaketime) - Reference the libfaketime dynamic link library to simulate time
+* [timechaos-our-final-hack](https://chaos-mesh.org/blog/simulating-clock-skew-in-k8s-without-affecting-other-containers-on-node/#timechaos-our-final-hack) - Reference the blog to simulate time

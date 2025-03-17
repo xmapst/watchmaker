@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+const _time = "time"
+
 // clockGettime is the target function would be replaced
 const clockGettime = "clock_gettime"
 
@@ -62,6 +64,7 @@ type ConfigCreatorParas struct {
 // We locked Skew injecting and recovering to avoid conflict.
 type Skew struct {
 	SkewConfig   *Config
+	time         *FakeImage
 	clockGetTime *FakeImage
 	getTimeOfDay *FakeImage
 
@@ -69,6 +72,11 @@ type Skew struct {
 }
 
 func GetSkew(c *Config) (*Skew, error) {
+	timeImage, err := LoadFakeImageFromEmbedFs(timeSkewFakeImage, _time)
+	if err != nil {
+		return nil, fmt.Errorf("load fake image err: %v", err)
+	}
+
 	clockGetTimeImage, err := LoadFakeImageFromEmbedFs(clockGettimeSkewFakeImage, clockGettime)
 	if err != nil {
 		return nil, fmt.Errorf("load fake image err: %v", err)
@@ -81,6 +89,7 @@ func GetSkew(c *Config) (*Skew, error) {
 
 	return &Skew{
 		SkewConfig:   c,
+		time:         timeImage,
 		clockGetTime: clockGetTimeImage,
 		getTimeOfDay: getTimeOfDayimage,
 		locker:       sync.Mutex{},
@@ -101,7 +110,15 @@ func (s *Skew) Inject(sysPID uint64) error {
 	s.locker.Lock()
 	defer s.locker.Unlock()
 
-	err := s.clockGetTime.AttachToProcess(int(sysPID), map[string]uint64{
+	err := s.time.AttachToProcess(int(sysPID), map[string]uint64{
+		externVarTvSecDelta:  uint64(s.SkewConfig.deltaSeconds),
+		externVarTvNsecDelta: uint64(s.SkewConfig.deltaNanoSeconds),
+	})
+	if err != nil {
+		return err
+	}
+
+	err = s.clockGetTime.AttachToProcess(int(sysPID), map[string]uint64{
 		externVarClockIdsMask: s.SkewConfig.clockIDsMask,
 		externVarTvSecDelta:   uint64(s.SkewConfig.deltaSeconds),
 		externVarTvNsecDelta:  uint64(s.SkewConfig.deltaNanoSeconds),

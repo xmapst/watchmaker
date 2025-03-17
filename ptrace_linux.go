@@ -375,7 +375,7 @@ func (p *TracedProgram) FindSymbolInEntry(symbolName string, entry *Entry) (uint
 		return 0, 0, err
 	}
 	for _, symbol := range symbols {
-		if strings.Contains(symbol.Name, symbolName) {
+		if symbol.Name == symbolName {
 			offset := symbol.Value
 
 			return entry.StartAddress + (offset - loadOffset), symbol.Size, nil

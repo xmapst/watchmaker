@@ -4,6 +4,8 @@ import (
 	"fmt"
 )
 
+const timeSkewFakeImage = "fake_time_amd64.o"
+
 // clockGettimeSkewFakeImage is the filename of fake image after compiling
 const clockGettimeSkewFakeImage = "fake_clock_gettime_arm64.o"
 

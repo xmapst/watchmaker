@@ -148,6 +148,7 @@ func (it *FakeImage) InjectFakeImage(program *TracedProgram,
 	if err != nil {
 		return nil, fmt.Errorf("%T find origin %s in vdso", err, it.symbolName)
 	}
+
 	funcBytes, err := program.ReadSlice(originAddr, size)
 	if err != nil {
 		return nil, fmt.Errorf("%T ReadSlice failed", err)

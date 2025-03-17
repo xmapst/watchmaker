@@ -10,9 +10,6 @@ var endian = binary.LittleEndian
 
 const syscallInstrSize = 2
 
-const nrProcessVMReadv = 310
-const nrProcessVMWritev = 311
-
 func getIp(regs *syscall.PtraceRegs) uintptr {
 	return uintptr(regs.Rip)
 }

@@ -14,15 +14,16 @@ all_build: init_env build_amd64 build_arm64
 init_env:
 	@echo "Initializing environment..."
 	@apt update && apt install -y gcc-aarch64-linux-gnu git tar xz-utils \
-	&& wget https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz \
-	&& tar -xf upx-4.2.4-amd64_linux.tar.xz \
-	&& mv upx-4.2.4-amd64_linux/upx /usr/local/bin/upx \
-	&& rm -rf upx-4.2.4-amd64_linux*
+	&& wget https://github.com/upx/upx/releases/download/v5.0.0/upx-5.0.0-amd64_linux.tar.xz \
+	&& tar -xf upx-5.0.0-amd64_linux.tar.xz \
+	&& mv upx-5.0.0-amd64_linux/upx /usr/local/bin/upx \
+	&& rm -rf upx-5.0.0-amd64_linux*
 
 build_amd64:
 	@echo "Building watchmaker_linux_amd64..."
 	@cc -c fakeclock/fake_clock_gettime.c -fPIE -O2 -o fakeclock/fake_clock_gettime_amd64.o
 	@cc -c fakeclock/fake_gettimeofday.c -fPIE -O2 -o fakeclock/fake_gettimeofday_amd64.o
+	@cc -c fakeclock/fake_time.c -fPIE -O2 -o fakeclock/fake_time_amd64.o
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_amd64 ./cmd/...
 	@upx --lzma bin/watchmaker_linux_amd64
 

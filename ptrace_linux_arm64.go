@@ -12,9 +12,6 @@ var endian = binary.LittleEndian
 
 const syscallInstrSize = 4
 
-const nrProcessVMReadv = 270
-const nrProcessVMWritev = 271
-
 // see kernel source /include/uapi/linux/elf.h
 const nrPRStatus = 1
 
