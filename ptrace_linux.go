@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -57,23 +58,27 @@ func Trace(pid int) (*TracedProgram, error) {
 
 	tidMap := make(map[int]bool)
 	retryCount := make(map[int]int)
+	attachedTids := []int{}
 
-	// iterate over the thread group, until it doens't change
-	//
-	// we have tried several ways to ensure that we have stopped all the tasks:
-	// 1. iterating over and over again to make sure all of them are tracee
-	// 2. send `SIGSTOP` signal
-	// ...
-	// only the first way finally worked for every situations
+	// 定义统一清理逻辑：如果 traceSuccess 未被置为 true，则对所有已 attach 的线程进行 detach
+	defer func() {
+		if !traceSuccess {
+			for _, tid := range attachedTids {
+				if err := syscall.PtraceDetach(tid); err != nil && !strings.Contains(err.Error(), "no such process") {
+					log.Println("detach failed", "tid", tid, "error", err)
+				}
+			}
+		}
+	}()
+
+	// 循环遍历线程组，直到线程数稳定不再增加
 	for {
 		threads, err := os.ReadDir(fmt.Sprintf("/proc/%d/task", pid))
 		if err != nil {
 			return nil, err
 		}
 
-		// judge whether `threads` is a subset of `tidMap`
 		subset := true
-
 		tids := make(map[int]bool)
 		for _, thread := range threads {
 			var tid64 int64
@@ -83,8 +88,7 @@ func Trace(pid int) (*TracedProgram, error) {
 			}
 			tid := int(tid64)
 
-			_, ok := tidMap[tid]
-			if ok {
+			if tidMap[tid] {
 				tids[tid] = true
 				continue
 			}
@@ -92,39 +96,25 @@ func Trace(pid int) (*TracedProgram, error) {
 
 			err = syscall.PtraceAttach(tid)
 			if err != nil {
-				_, ok = retryCount[tid]
-				if !ok {
-					retryCount[tid] = 1
-				} else {
-					retryCount[tid]++
-				}
+				retryCount[tid]++
 				if retryCount[tid] < threadRetryLimit {
 					log.Println("retry attaching thread", "tid", tid, "retryCount", retryCount[tid], "limit", threadRetryLimit)
 					continue
 				}
-
 				if !strings.Contains(err.Error(), "no such process") {
 					return nil, err
 				}
 				continue
 			}
-			defer func() {
-				if !traceSuccess {
-					err = syscall.PtraceDetach(tid)
-					if err != nil {
-						if !strings.Contains(err.Error(), "no such process") {
-							log.Println(err, "detach failed", "tid", tid)
-						}
-					}
-				}
-			}()
 
-			err = waitPid(tid)
-			if err != nil {
+			// 成功 attach 后，记录 tid 用于后续统一 detach
+			attachedTids = append(attachedTids, tid)
+
+			if err = waitPid(tid); err != nil {
 				return nil, err
 			}
 
-			//log.Println("attach successfully", "tid", tid)
+			//log.Println("attach successfully, process task id", tid)
 			tids[tid] = true
 			tidMap[tid] = true
 		}
@@ -135,10 +125,13 @@ func Trace(pid int) (*TracedProgram, error) {
 		}
 	}
 
-	var tids []int
-	for key := range tidMap {
-		tids = append(tids, key)
+	// 将 tidMap 中的 key 转换为 slice
+	var tidsList []int
+	for tid := range tidMap {
+		tidsList = append(tidsList, tid)
 	}
+
+	slices.Sort(tidsList)
 
 	entries, err := ReadMaps(pid)
 	if err != nil {
@@ -147,7 +140,7 @@ func Trace(pid int) (*TracedProgram, error) {
 
 	program := &TracedProgram{
 		pid:        pid,
-		tids:       tids,
+		tids:       tidsList,
 		Entries:    entries,
 		backupRegs: &syscall.PtraceRegs{},
 		backupCode: make([]byte, syscallInstrSize),
@@ -161,7 +154,7 @@ func Trace(pid int) (*TracedProgram, error) {
 // Detach detaches from all threads of the processes
 func (p *TracedProgram) Detach() error {
 	for _, tid := range p.tids {
-		//log.Println("detaching", "tid", tid)
+		//log.Println("detaching, process task id", tid)
 		err := syscall.PtraceDetach(tid)
 
 		if err != nil {
@@ -170,6 +163,7 @@ func (p *TracedProgram) Detach() error {
 			}
 		}
 	}
+	//log.Println("Successfully detach and rerun process, pid", p.pid)
 	return nil
 }
 
@@ -380,7 +374,7 @@ func (p *TracedProgram) FindSymbolInEntry(symbolName string, entry *Entry) (uint
 		return 0, 0, err
 	}
 	for _, symbol := range symbols {
-		if symbol.Name == symbolName {
+		if strings.TrimPrefix(symbol.Name, "__vdso_") == symbolName {
 			offset := symbol.Value
 
 			return entry.StartAddress + (offset - loadOffset), symbol.Size, nil
