@@ -2,6 +2,8 @@ package watchmaker
 
 import (
 	"fmt"
+	"log"
+	"runtime"
 	"sync"
 )
 
@@ -110,7 +112,23 @@ func (s *Skew) Inject(sysPID uint64) error {
 	s.locker.Lock()
 	defer s.locker.Unlock()
 
-	err := s.time.AttachToProcess(int(sysPID), map[string]uint64{
+	runtime.LockOSThread()
+	defer func() {
+		runtime.UnlockOSThread()
+	}()
+
+	program, err := Trace(int(sysPID))
+	if err != nil {
+		return fmt.Errorf("%v ptrace on target process, pid: %d", err, int(sysPID))
+	}
+	defer func() {
+		err = program.Detach()
+		if err != nil {
+			log.Println(err, "fail to detach program", "pid", program.Pid())
+		}
+	}()
+
+	err = s.time.AttachToProcess(program, map[string]uint64{
 		externVarTvSecDelta:  uint64(s.SkewConfig.deltaSeconds),
 		externVarTvNsecDelta: uint64(s.SkewConfig.deltaNanoSeconds),
 	})
@@ -118,7 +136,7 @@ func (s *Skew) Inject(sysPID uint64) error {
 		return err
 	}
 
-	err = s.clockGetTime.AttachToProcess(int(sysPID), map[string]uint64{
+	err = s.clockGetTime.AttachToProcess(program, map[string]uint64{
 		externVarClockIdsMask: s.SkewConfig.clockIDsMask,
 		externVarTvSecDelta:   uint64(s.SkewConfig.deltaSeconds),
 		externVarTvNsecDelta:  uint64(s.SkewConfig.deltaNanoSeconds),
@@ -127,7 +145,7 @@ func (s *Skew) Inject(sysPID uint64) error {
 		return err
 	}
 
-	err = s.getTimeOfDay.AttachToProcess(int(sysPID), map[string]uint64{
+	err = s.getTimeOfDay.AttachToProcess(program, map[string]uint64{
 		externVarTvSecDelta:  uint64(s.SkewConfig.deltaSeconds),
 		externVarTvNsecDelta: uint64(s.SkewConfig.deltaNanoSeconds),
 	})

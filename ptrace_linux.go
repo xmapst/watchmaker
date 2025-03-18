@@ -9,7 +9,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"golang.org/x/sys/unix"
 )
@@ -29,7 +28,7 @@ type TracedProgram struct {
 	tids    []int
 	Entries []Entry
 
-	backupRegs *syscall.PtraceRegs
+	backupRegs *unix.PtraceRegs
 	backupCode []byte
 }
 
@@ -39,8 +38,8 @@ func (p *TracedProgram) Pid() int {
 }
 
 func waitPid(pid int) error {
-	status := syscall.WaitStatus(0)
-	wpid, err := syscall.Wait4(pid, &status, 0, nil)
+	status := unix.WaitStatus(0)
+	wpid, err := unix.Wait4(pid, &status, 0, nil)
 	if err != nil {
 		return err
 	}
@@ -58,13 +57,13 @@ func Trace(pid int) (*TracedProgram, error) {
 
 	tidMap := make(map[int]bool)
 	retryCount := make(map[int]int)
-	attachedTids := []int{}
+	var attachedTids []int
 
 	// 定义统一清理逻辑：如果 traceSuccess 未被置为 true，则对所有已 attach 的线程进行 detach
 	defer func() {
 		if !traceSuccess {
 			for _, tid := range attachedTids {
-				if err := syscall.PtraceDetach(tid); err != nil && !strings.Contains(err.Error(), "no such process") {
+				if err := unix.PtraceDetach(tid); err != nil && !strings.Contains(err.Error(), "no such process") {
 					log.Println("detach failed", "tid", tid, "error", err)
 				}
 			}
@@ -94,11 +93,10 @@ func Trace(pid int) (*TracedProgram, error) {
 			}
 			subset = false
 
-			err = syscall.PtraceAttach(tid)
+			err = unix.PtraceAttach(tid)
 			if err != nil {
 				retryCount[tid]++
 				if retryCount[tid] < threadRetryLimit {
-					log.Println("retry attaching thread", "tid", tid, "retryCount", retryCount[tid], "limit", threadRetryLimit)
 					continue
 				}
 				if !strings.Contains(err.Error(), "no such process") {
@@ -142,8 +140,8 @@ func Trace(pid int) (*TracedProgram, error) {
 		pid:        pid,
 		tids:       tidsList,
 		Entries:    entries,
-		backupRegs: &syscall.PtraceRegs{},
-		backupCode: make([]byte, syscallInstrSize),
+		backupRegs: &unix.PtraceRegs{},
+		backupCode: make([]byte, unixInstrSize),
 	}
 
 	traceSuccess = true
@@ -155,7 +153,7 @@ func Trace(pid int) (*TracedProgram, error) {
 func (p *TracedProgram) Detach() error {
 	for _, tid := range p.tids {
 		//log.Println("detaching, process task id", tid)
-		err := syscall.PtraceDetach(tid)
+		err := unix.PtraceDetach(tid)
 
 		if err != nil {
 			if !strings.Contains(err.Error(), "no such process") {
@@ -174,7 +172,7 @@ func (p *TracedProgram) Protect() error {
 		return err
 	}
 
-	_, err = syscall.PtracePeekData(p.pid, getIp(p.backupRegs), p.backupCode)
+	_, err = unix.PtracePeekData(p.pid, getIp(p.backupRegs), p.backupCode)
 	if err != nil {
 		return err
 	}
@@ -189,7 +187,7 @@ func (p *TracedProgram) Restore() error {
 		return err
 	}
 
-	_, err = syscall.PtracePokeData(p.pid, getIp(p.backupRegs), p.backupCode)
+	_, err = unix.PtracePokeData(p.pid, getIp(p.backupRegs), p.backupCode)
 	if err != nil {
 		return err
 	}
@@ -204,7 +202,7 @@ func (p *TracedProgram) Wait() error {
 
 // Step moves one step forward
 func (p *TracedProgram) Step() error {
-	err := syscall.PtraceSingleStep(p.pid)
+	err := unix.PtraceSingleStep(p.pid)
 	if err != nil {
 		return err
 	}
@@ -214,7 +212,7 @@ func (p *TracedProgram) Step() error {
 
 // Mmap runs mmap syscall
 func (p *TracedProgram) Mmap(length uint64, fd uint64) (uint64, error) {
-	return p.Syscall(syscall.SYS_MMAP, 0, length, syscall.PROT_READ|syscall.PROT_WRITE|syscall.PROT_EXEC, syscall.MAP_ANON|syscall.MAP_PRIVATE, fd, 0)
+	return p.Syscall(unix.SYS_MMAP, 0, length, unix.PROT_READ|unix.PROT_WRITE|unix.PROT_EXEC, unix.MAP_ANON|unix.MAP_PRIVATE, fd, 0)
 }
 
 // ReadSlice reads from addr and return a slice
@@ -300,7 +298,7 @@ func (p *TracedProgram) PtraceWriteSlice(addr uint64, buffer []byte) error {
 		_addr := uintptr(addr + uint64(wroteSize))
 		data := buffer[wroteSize : wroteSize+ptrSize]
 
-		_, err := syscall.PtracePokeData(p.pid, _addr, data)
+		_, err := unix.PtracePokeData(p.pid, _addr, data)
 		if err != nil {
 			return fmt.Errorf("%T write to addr %x with %+v failed", err, addr, data)
 		}
@@ -374,7 +372,7 @@ func (p *TracedProgram) FindSymbolInEntry(symbolName string, entry *Entry) (uint
 		return 0, 0, err
 	}
 	for _, symbol := range symbols {
-		if strings.TrimPrefix(symbol.Name, "__vdso_") == symbolName {
+		if symbol.Name == symbolName {
 			offset := symbol.Value
 
 			return entry.StartAddress + (offset - loadOffset), symbol.Size, nil

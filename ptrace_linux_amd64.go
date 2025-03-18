@@ -3,19 +3,20 @@ package watchmaker
 import (
 	"encoding/binary"
 	"fmt"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 var endian = binary.LittleEndian
 
-const syscallInstrSize = 2
+const unixInstrSize = 2
 
-func getIp(regs *syscall.PtraceRegs) uintptr {
+func getIp(regs *unix.PtraceRegs) uintptr {
 	return uintptr(regs.Rip)
 }
 
-func getRegs(pid int, regsout *syscall.PtraceRegs) error {
-	err := syscall.PtraceGetRegs(pid, regsout)
+func getRegs(pid int, regsout *unix.PtraceRegs) error {
+	err := unix.PtraceGetRegs(pid, regsout)
 	if err != nil {
 		return fmt.Errorf("%T get registers of process %d", err, pid)
 	}
@@ -23,8 +24,8 @@ func getRegs(pid int, regsout *syscall.PtraceRegs) error {
 	return nil
 }
 
-func setRegs(pid int, regs *syscall.PtraceRegs) error {
-	err := syscall.PtraceSetRegs(pid, regs)
+func setRegs(pid int, regs *unix.PtraceRegs) error {
+	err := unix.PtraceSetRegs(pid, regs)
 	if err != nil {
 		return fmt.Errorf("%T set registers of process %d", err, pid)
 	}
@@ -40,7 +41,7 @@ func (p *TracedProgram) Syscall(number uint64, args ...uint64) (uint64, error) {
 		return 0, err
 	}
 
-	var regs syscall.PtraceRegs
+	var regs unix.PtraceRegs
 
 	err = getRegs(p.pid, &regs)
 	if err != nil {
@@ -74,13 +75,13 @@ func (p *TracedProgram) Syscall(number uint64, args ...uint64) (uint64, error) {
 		return 0, err
 	}
 
-	instruction := make([]byte, syscallInstrSize)
+	instruction := make([]byte, unixInstrSize)
 	ip := getIp(p.backupRegs)
 
 	// set the current instruction (the ip register points to) to the `syscall`
 	// instruction. In x86_64, the `syscall` instruction is 0x050f.
 	binary.LittleEndian.PutUint16(instruction, 0x050f)
-	_, err = syscall.PtracePokeData(p.pid, ip, instruction)
+	_, err = unix.PtracePokeData(p.pid, ip, instruction)
 	if err != nil {
 		return 0, fmt.Errorf("%T writing data %v to %x", err, instruction, ip)
 	}
