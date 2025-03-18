@@ -15,6 +15,7 @@
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <cstring>
+#include <signal.h>
 
 // 获取格式化时间的函数
 template<typename TimeFunc>
@@ -144,6 +145,10 @@ void epollServer() {
 }
 
 int main() {
+    struct sigaction sa;
+    sa.sa_handler = SIG_IGN;
+    sigaction(SIGPIPE, &sa, nullptr);
+
     std::thread server_thread(epollServer);
     server_thread.detach();
     // 主线程每秒打印三种时间格式
