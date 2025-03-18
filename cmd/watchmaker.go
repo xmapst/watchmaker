@@ -21,6 +21,11 @@ var (
 	clockIdsSlice string
 )
 
+func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	log.SetOutput(os.Stdout)
+}
+
 func main() {
 	flag.Uint64Var(&pid, "pid", 0, "pid of target program")
 	flag.StringVar(&fakeTime, "faketime", "", "fake time (incremental/absolute value)")
