@@ -56,7 +56,6 @@ func Trace(pid int) (*TracedProgram, error) {
 	traceSuccess := false
 
 	tidMap := make(map[int]bool)
-	retryCount := make(map[int]int)
 	var attachedTids []int
 
 	// 定义统一清理逻辑：如果 traceSuccess 未被置为 true，则对所有已 attach 的线程进行 detach
@@ -93,18 +92,15 @@ func Trace(pid int) (*TracedProgram, error) {
 			}
 			subset = false
 
-			err = unix.PtraceAttach(tid)
+			err = unix.PtraceSeize(tid)
 			if err != nil {
-				retryCount[tid]++
-				if retryCount[tid] < threadRetryLimit {
-					continue
-				}
-				if !strings.Contains(err.Error(), "no such process") {
-					return nil, err
-				}
-				continue
+				return nil, err
 			}
 
+			err = unix.PtraceInterrupt(tid)
+			if err != nil {
+				return nil, err
+			}
 			// 成功 attach 后，记录 tid 用于后续统一 detach
 			attachedTids = append(attachedTids, tid)
 
