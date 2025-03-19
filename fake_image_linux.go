@@ -34,25 +34,41 @@ func NewFakeImage(symbolName string, content []byte, offset map[string]int) *Fak
 
 // AttachToProcess would use ptrace to replace the VDSO ELF entry with FakeImage.
 // Each item in parameter "variables" needs a corresponding entry in FakeImage.offset.
-func (it *FakeImage) AttachToProcess(program *TracedProgram, variables map[string]uint64) (err error) {
+func (it *FakeImage) AttachToProcess(pid int, variables map[string]uint64) (err error) {
 	if len(variables) != len(it.offset) {
 		return fmt.Errorf("fake image: extern variable number not match")
 	}
 
+	runtime.LockOSThread()
+	defer func() {
+		runtime.UnlockOSThread()
+	}()
+
+	program, err := Trace(pid)
+	if err != nil {
+		return fmt.Errorf("%v ptrace on target process, pid: %d", err, pid)
+	}
+	defer func() {
+		err = program.Detach()
+		if err != nil {
+			log.Println(err, "fail to detach program", "pid", pid)
+		}
+	}()
+
 	vdsoEntry, err := FindVDSOEntry(program)
 	if err != nil {
-		return fmt.Errorf("%v PID : %d", err, program.Pid())
+		return fmt.Errorf("%v PID : %d", err, pid)
 	}
 
 	fakeEntry, err := it.FindInjectedImage(program, len(variables))
 	if err != nil {
-		return fmt.Errorf("%v PID : %d", err, program.Pid())
+		return fmt.Errorf("%v PID : %d", err, pid)
 	}
 	// target process has not been injected yet
 	if fakeEntry == nil {
 		fakeEntry, err = it.InjectFakeImage(program, vdsoEntry)
 		if err != nil {
-			return fmt.Errorf("%v injecting fake image, PID : %d", err, program.Pid())
+			return fmt.Errorf("%v injecting fake image, PID : %d", err, pid)
 		}
 		defer func() {
 			if err != nil {
@@ -70,7 +86,7 @@ func (it *FakeImage) AttachToProcess(program *TracedProgram, variables map[strin
 		err = it.SetVarUint64(program, fakeEntry, k, v)
 
 		if err != nil {
-			return fmt.Errorf("%v set %s for time skew, pid: %d", err, k, program.Pid())
+			return fmt.Errorf("%v set %s for time skew, pid: %d", err, k, pid)
 		}
 	}
 
