@@ -31,5 +31,10 @@ build_arm64:
 	@echo "Building watchmaker_linux_arm64..."
 	@aarch64-linux-gnu-gcc -c fakeclock/fake_clock_gettime.c -fPIE -O2 -o fakeclock/fake_clock_gettime_arm64.o
 	@aarch64-linux-gnu-gcc -c fakeclock/fake_gettimeofday.c -fPIE -O2 -o fakeclock/fake_gettimeofday_arm64.o
+	@aarch64-linux-gnu-gcc -c fakeclock/fake_time.c -fPIE -O2 -o fakeclock/fake_time_arm64.o
 	@CGO_ENABLED=0 CC=aarch64-linux-gnu-gcc GOOS=linux GOARCH=arm64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_arm64 ./cmd/...
 	@upx --lzma bin/watchmaker_linux_arm64
+
+clean:
+	rm -f fakeclock/*.o
+	rm -rf bin

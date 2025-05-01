@@ -18,6 +18,11 @@ inline time_t real_time(time_t *t) {
     return (time_t)ret;
 }
 #elif defined(__aarch64__)
+// apparently this is wrong as it taken from x86_64-linux-gnu/asm/unistd_64.h
+// of linux-libc-dev:amd64
+#ifndef __NR_time
+#define __NR_time 201
+#endif
 inline time_t real_time(time_t *t) {
     register long ret __asm__("x0") = (long)t;
     register long x8 __asm__("x8") = __NR_time;
