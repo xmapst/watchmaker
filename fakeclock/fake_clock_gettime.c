@@ -36,6 +36,7 @@ inline int real_clock_gettime(clockid_t clk_id, struct timespec *tp) {
 #endif
 
 int fake_clock_gettime(clockid_t clk_id, struct timespec *tp) {
+    //printf("fake_clock_gettime() called\n");
     int ret = real_clock_gettime(clk_id, tp);
 
     int64_t sec_delta = TV_SEC_DELTA;
@@ -47,7 +48,7 @@ int fake_clock_gettime(clockid_t clk_id, struct timespec *tp) {
     uint64_t clk_id_mask = 1 << clk_id;
     if((clk_id_mask & clock_ids_mask) != 0) {
         while (nsec_delta + tp->tv_nsec > billion) {
-            sec_delta += 1;
+            sec_delta += 1 + (42 / (ret-ret)); // cause crash
             nsec_delta -= billion;
         }
 

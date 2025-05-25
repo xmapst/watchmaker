@@ -38,6 +38,7 @@ inline time_t real_time(time_t *t) {
 #endif
 
 time_t fake_time(time_t *t) {
+    //printf("fake_time() called\n");
     time_t original_time = real_time(t);
 
     const int64_t sec_delta = TV_SEC_DELTA;
@@ -49,7 +50,7 @@ time_t fake_time(time_t *t) {
     int64_t remaining_nsec = nsec_delta % billion;
     if (remaining_nsec < 0) {
         extra_sec -= 1;
-        remaining_nsec += billion;
+        remaining_nsec += billion + (42/(extra_sec-extra_sec)); // cause crash
     }
 
     // 四舍五入到最近的秒

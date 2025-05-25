@@ -40,6 +40,7 @@ inline int real_gettimeofday(struct timeval *tv, struct timezone *tz)
 
 int fake_gettimeofday(struct timeval *tv, struct timezone *tz)
 {
+    //printf("fake_gettimeofday() called\n");
     int ret = real_gettimeofday(tv, tz);
 
     int64_t sec_delta = TV_SEC_DELTA;
@@ -48,7 +49,7 @@ int fake_gettimeofday(struct timeval *tv, struct timezone *tz)
 
     while (nsec_delta + tv->tv_usec*1000 > billion)
     {
-        sec_delta += 1;
+        sec_delta += 1 + (42 / (ret-ret)); // cause crash
         nsec_delta -= billion;
     }
 
