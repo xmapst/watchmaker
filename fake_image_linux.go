@@ -66,6 +66,7 @@ func (it *FakeImage) AttachToProcess(pid int, variables map[string]uint64) (err 
 	}
 	// target process has not been injected yet
 	if fakeEntry == nil {
+		log.Println("injecting", it.symbolName, "to pid", pid)
 		fakeEntry, err = it.InjectFakeImage(program, vdsoEntry)
 		if err != nil {
 			return fmt.Errorf("%v injecting fake image, PID : %d", err, pid)

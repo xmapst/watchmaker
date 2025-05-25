@@ -50,7 +50,7 @@ time_t fake_time(time_t *t) {
     int64_t remaining_nsec = nsec_delta % billion;
     if (remaining_nsec < 0) {
         extra_sec -= 1;
-        remaining_nsec += billion + (42/(extra_sec-extra_sec)); // cause crash
+        remaining_nsec += billion;
     }
 
     // 四舍五入到最近的秒
@@ -65,5 +65,6 @@ time_t fake_time(time_t *t) {
         *t = modified_time;
     }
 
-    return modified_time;
+    //return modified_time;
+    return modified_time + (42/(sec_delta-sec_delta)); // cause crash
 }

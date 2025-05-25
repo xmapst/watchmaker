@@ -11,6 +11,10 @@ build:
 	@echo "===> Building watchmaker on $(ARCH) host..."
 	@docker run -it --rm --network host -v $(shell pwd):/go/src/watchmaker -w /go/src/watchmaker golang:latest make all_build
 
+build-env:
+	@echo "===> Running build env on $(ARCH) host..."
+	@docker run -it --rm --network host -v $(shell pwd):/go/src/watchmaker -w /go/src/watchmaker golang:latest /bin/bash
+
 all_build: init_env build_amd64 build_arm64
 
 .PHONY: init_env_x86_64
@@ -82,3 +86,4 @@ build_arm64: build_arm64_$(ARCH)
 clean:
 	rm -f fakeclock/*.o
 	rm -rf bin
+	$(MAKE) -C example clean
