@@ -18,21 +18,22 @@ inline time_t real_time(time_t *t) {
     return (time_t)ret;
 }
 #elif defined(__aarch64__)
-// apparently this is wrong as it taken from x86_64-linux-gnu/asm/unistd_64.h
-// of linux-libc-dev:amd64
-#ifndef __NR_time
-#define __NR_time 201
-#endif
+// use SYS_gettimeofday() on arm
 inline time_t real_time(time_t *t) {
-    register long ret __asm__("x0") = (long)t;
-    register long x8 __asm__("x8") = __NR_time;
-    __asm__ volatile(
-        "svc 0"
-        : "+r"(ret)
-        : "r"(x8)
-        : "memory"
-    );
-    return (time_t)ret;
+    struct timeval tv;
+    struct timezone tz;
+    register int w0 __asm__("w0");
+
+    register struct timeval *x0 __asm__("x0") = &tv;
+    register struct timezone *x1 __asm__("x1") = &tz;
+    register uint64_t w8 __asm__("w8") = SYS_gettimeofday; /* syscall number */
+    __asm__ __volatile__(
+        "svc 0;"
+        : "+r"(w0)
+        : "r"(x0), "r" (x1), "r"(w8)
+        : "memory");
+
+    return (time_t)tv.tv_sec;
 }
 #endif
 

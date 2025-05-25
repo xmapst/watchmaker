@@ -108,7 +108,7 @@ func Trace(pid int) (*TracedProgram, error) {
 				return nil, err
 			}
 
-			//log.Println("attach successfully, process task id", tid)
+			log.Println("attach successfully, process task id", tid)
 			tids[tid] = true
 			tidMap[tid] = true
 		}
@@ -148,7 +148,7 @@ func Trace(pid int) (*TracedProgram, error) {
 // Detach detaches from all threads of the processes
 func (p *TracedProgram) Detach() error {
 	for _, tid := range p.tids {
-		//log.Println("detaching, process task id", tid)
+		log.Println("detaching, process task id", tid)
 		err := unix.PtraceDetach(tid)
 
 		if err != nil {
@@ -157,7 +157,7 @@ func (p *TracedProgram) Detach() error {
 			}
 		}
 	}
-	//log.Println("Successfully detach and rerun process, pid", p.pid)
+	log.Println("Successfully detach and rerun process, pid", p.pid)
 	return nil
 }
 
