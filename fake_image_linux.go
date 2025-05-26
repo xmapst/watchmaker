@@ -35,6 +35,11 @@ func NewFakeImage(symbolName string, content []byte, offset map[string]int) *Fak
 // AttachToProcess would use ptrace to replace the VDSO ELF entry with FakeImage.
 // Each item in parameter "variables" needs a corresponding entry in FakeImage.offset.
 func (it *FakeImage) AttachToProcess(pid int, variables map[string]uint64) (err error) {
+	log.Printf("%s: got %d variables (%d in offset)", it.symbolName, len(variables), len(it.offset))
+
+	for k, v := range it.offset {
+		log.Printf("%s: %s=%d", it.symbolName, k, v)
+	}
 	if len(variables) != len(it.offset) {
 		return fmt.Errorf("fake image: extern variable number not match")
 	}
