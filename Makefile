@@ -8,6 +8,8 @@ ARCH := $(shell uname -m)
 
 CFLAGS := -fPIE -O2
 
+OBJ_SRCS := fake_clock_gettime fake_gettimeofday fake_time
+
 .PHONY: build all_build init_env build_amd64 build_arm64
 build:
 	@echo "===> Building watchmaker on $(ARCH) host..."
@@ -47,21 +49,29 @@ init_env: init_env_$(ARCH)
 
 .PHONY: build_amd64_x86_64
 build_amd64_x86_64:
-	@echo "===> Building watchmaker_linux_amd64 on $(ARCH)..."
-	gcc -c fakeclock/fake_clock_gettime.c $(CFLAGS) -o fakeclock/fake_clock_gettime_amd64.o
-	gcc -c fakeclock/fake_gettimeofday.c $(CFLAGS) -o fakeclock/fake_gettimeofday_amd64.o
-	gcc -c fakeclock/fake_time.c $(CFLAGS) -o fakeclock/fake_time_amd64.o
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_amd64 ./cmd/...
-	upx --lzma bin/watchmaker_linux_amd64
+	@{ \
+	echo "===> Building watchmaker_linux_amd64 on $(ARCH)..." ; \
+	set -x ; \
+	for src in $(OBJ_SRCS); do \
+		gcc -c fakeclock/$${src}.c $(CFLAGS) -o fakeclock/$${src}_amd64.o ; \
+		objdump -x fakeclock/$${src}_amd64.o ; \
+	done ; \
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_amd64 ./cmd/... ; \
+	upx --force-overwrite --lzma bin/watchmaker_linux_amd64 ; \
+	}
 
 .PHONY: build_amd64_arm64
 build_amd64_arm64:
-	@echo "===> Building watchmaker_linux_amd64 on $(ARCH)..."
-	x86_64-linux-gnu-gcc-12 -c fakeclock/fake_clock_gettime.c $(CFLAGS) -o fakeclock/fake_clock_gettime_amd64.o
-	x86_64-linux-gnu-gcc-12 -c fakeclock/fake_gettimeofday.c $(CFLAGS) -o fakeclock/fake_gettimeofday_amd64.o
-	x86_64-linux-gnu-gcc-12 -c fakeclock/fake_time.c $(CFLAGS) -o fakeclock/fake_time_amd64.o
-	CGO_ENABLED=0 CC=x86_64-linux-gnu-gcc-12 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_amd64 ./cmd/...
-	upx --lzma bin/watchmaker_linux_amd64
+	@{ \
+	echo "===> Building watchmaker_linux_amd64 on $(ARCH)..." ; \
+	set -x ; \
+	for src in $(OBJ_SRCS); do \
+		x86_64-linux-gnu-gcc-12 -c fakeclock/$${src}.c $(CFLAGS) -o fakeclock/$${src}_amd64.o ; \
+		x86_64-linux-gnu-objdump -x fakeclock/$${src}_amd64.o ; \
+	done ; \
+	CGO_ENABLED=0 CC=x86_64-linux-gnu-gcc-12 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_amd64 ./cmd/... ; \
+	upx --lzma bin/watchmaker_linux_amd64 ; \
+	}
 
 build_amd64_aarch64: build_amd64_arm64
 
@@ -69,21 +79,29 @@ build_amd64: build_amd64_$(ARCH)
 
 .PHONY: build_arm64_x86_64
 build_arm64_x86_64:
-	@echo "===> Building watchmaker_linux_arm64 on $(ARCH)..."
-	aarch64-linux-gnu-gcc-12 -c fakeclock/fake_clock_gettime.c $(CFLAGS) -o fakeclock/fake_clock_gettime_arm64.o
-	aarch64-linux-gnu-gcc-12 -c fakeclock/fake_gettimeofday.c $(CFLAGS) -o fakeclock/fake_gettimeofday_arm64.o
-	aarch64-linux-gnu-gcc-12 -c fakeclock/fake_time.c $(CFLAGS) -o fakeclock/fake_time_arm64.o
-	CGO_ENABLED=0 CC=aarch64-linux-gnu-gcc-12 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_arm64 ./cmd/...
-	upx --lzma bin/watchmaker_linux_arm64
+	@{ \
+	echo "===> Building watchmaker_linux_arm64 on $(ARCH)..." ; \
+	set -x ; \
+	for src in $(OBJ_SRCS); do \
+		aarch64-linux-gnu-gcc-12 -c fakeclock/$${src}.c $(CFLAGS) -o fakeclock/$${src}_arm64.o ; \
+		aarch64-linux-gnu-objdump -x fakeclock/$${src}_arm64.o ; \
+	done; \
+	CGO_ENABLED=0 CC=aarch64-linux-gnu-gcc-12 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_arm64 ./cmd/... ; \
+	upx --lzma bin/watchmaker_linux_arm64 ; \
+	}
 
 .PHONY: build_arm64_arm64
 build_arm64_arm64:
-	@echo "===> Building watchmaker_linux_arm64 on $(ARCH)..."
-	gcc -c fakeclock/fake_clock_gettime.c $(CFLAGS) -o fakeclock/fake_clock_gettime_arm64.o
-	gcc -c fakeclock/fake_gettimeofday.c $(CFLAGS) -o fakeclock/fake_gettimeofday_arm64.o
-	gcc -c fakeclock/fake_time.c $(CFLAGSr) -o fakeclock/fake_time_arm64.o
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_arm64 ./cmd/...
-	upx --lzma bin/watchmaker_linux_arm64
+	@{ \
+	echo "===> Building watchmaker_linux_arm64 on $(ARCH)..." ; \
+	set -x ; \
+	for src in $(OBJ_SRCS); do \
+		gcc -c fakeclock/$${src}.c $(CFLAGS) -o fakeclock/$${src}_arm64.o ; \
+		objdump -x fakeclock/$${src}_arm64.o ; \
+	done ; \
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_arm64 ./cmd/... ; \
+	upx --lzma bin/watchmaker_linux_arm64 ; \
+	}
 
 build_arm64_aarch64: build_arm64_arm64
 
