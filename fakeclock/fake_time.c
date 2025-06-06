@@ -18,23 +18,7 @@ inline time_t real_time(time_t *t) {
     return (time_t)ret;
 }
 #elif defined(__aarch64__)
-// use SYS_gettimeofday() on arm
-inline time_t real_time(time_t *t) {
-    struct timeval tv;
-    struct timezone tz;
-    register int w0 __asm__("w0");
-
-    register struct timeval *x0 __asm__("x0") = &tv;
-    register struct timezone *x1 __asm__("x1") = &tz;
-    register uint64_t w8 __asm__("w8") = SYS_gettimeofday; /* syscall number */
-    __asm__ __volatile__(
-        "svc 0;"
-        : "+r"(w0)
-        : "r"(x0), "r" (x1), "r"(w8)
-        : "memory");
-
-    return (time_t)tv.tv_sec;
-}
+#error This is not supposed to be compiled on aarch64 targets as __NR_time is deprecated there.
 #endif
 
 time_t fake_time(time_t *t) {

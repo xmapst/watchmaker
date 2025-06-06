@@ -13,7 +13,9 @@ ARCH := $(shell uname -m)
 
 CFLAGS := -fPIE -O2
 
-OBJ_SRCS := fake_clock_gettime fake_gettimeofday fake_time
+OBJ_SRCS_amd64 := fake_clock_gettime fake_gettimeofday fake_time
+# on modern arm64 kernels time() works via gettimeofday()
+OBJ_SRCS_arm64 := fake_clock_gettime fake_gettimeofday
 
 .PHONY: help
 help: ## Show help message (list targets)
@@ -36,7 +38,8 @@ SHOW_ENV_VARS = \
 	LDFLAGS \
 	ARCH \
 	CFLAGS \
-	OBJ_SRCS
+	OBJ_SRCS_amd64 \
+	OBJ_SRCS_arm64
 
 show-env: $(addprefix show-var-, $(SHOW_ENV_VARS)) ## Show environment details
 
@@ -82,8 +85,8 @@ init_env: init_env_$(ARCH) ## Install dependencies (auto-detect host arch)
 build_amd64_amd64: ## Build amd64 binaries on amd64/x86_64 host
 	@{ \
 	echo "===> Building watchmaker_linux_amd64 on $(ARCH)..." ; \
-	set -x ; \
-	for src in $(OBJ_SRCS); do \
+	set -ex ; \
+	for src in $(OBJ_SRCS_amd64); do \
 		gcc -c fakeclock/$${src}.c $(CFLAGS) -o fakeclock/$${src}_amd64.o ; \
 		objdump -x fakeclock/$${src}_amd64.o ; \
 	done ; \
@@ -95,8 +98,8 @@ build_amd64_amd64: ## Build amd64 binaries on amd64/x86_64 host
 build_amd64_arm64: ## Build amd64 binaries on arm64/aarch64 host
 	@{ \
 	echo "===> Building watchmaker_linux_amd64 on $(ARCH)..." ; \
-	set -x ; \
-	for src in $(OBJ_SRCS); do \
+	set -ex ; \
+	for src in $(OBJ_SRCS_amd64); do \
 		x86_64-linux-gnu-gcc-12 -c fakeclock/$${src}.c $(CFLAGS) -o fakeclock/$${src}_amd64.o ; \
 		x86_64-linux-gnu-objdump -x fakeclock/$${src}_amd64.o ; \
 	done ; \
@@ -113,8 +116,8 @@ build_amd64: build_amd64_$(ARCH) ## Build amd64 binaries (auto-detect host arch)
 build_arm64_amd64: ## Build arm64 binaries on amd64/x86_64 host
 	@{ \
 	echo "===> Building watchmaker_linux_arm64 on $(ARCH)..." ; \
-	set -x ; \
-	for src in $(OBJ_SRCS); do \
+	set -ex ; \
+	for src in $(OBJ_SRCS_arm64); do \
 		aarch64-linux-gnu-gcc-12 -c fakeclock/$${src}.c $(CFLAGS) -o fakeclock/$${src}_arm64.o ; \
 		aarch64-linux-gnu-objdump -x fakeclock/$${src}_arm64.o ; \
 	done; \
@@ -126,8 +129,8 @@ build_arm64_amd64: ## Build arm64 binaries on amd64/x86_64 host
 build_arm64_arm64: ## Build arm64 binaries on arm64/aarch64 host
 	@{ \
 	echo "===> Building watchmaker_linux_arm64 on $(ARCH)..." ; \
-	set -x ; \
-	for src in $(OBJ_SRCS); do \
+	set -ex ; \
+	for src in $(OBJ_SRCS_arm64); do \
 		gcc -c fakeclock/$${src}.c $(CFLAGS) -o fakeclock/$${src}_arm64.o ; \
 		objdump -x fakeclock/$${src}_arm64.o ; \
 	done ; \
