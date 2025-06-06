@@ -1,3 +1,8 @@
+#!/usr/bin/env make -f
+
+TOPDIR := $(realpath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+SELF := $(abspath $(lastword $(MAKEFILE_LIST)))
+
 GIT_URL := $(shell git remote -v|grep push|awk '{print $$2}')
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 GIT_COMMIT := $(shell git rev-parse HEAD)
@@ -10,23 +15,27 @@ CFLAGS := -fPIE -O2
 
 OBJ_SRCS := fake_clock_gettime fake_gettimeofday fake_time
 
+.PHONY: help
+help: ## Show help message (list targets)
+	@awk 'BEGIN {FS = ":.*##"; printf "\nTargets:\n"} /^[$$()% 0-9a-zA-Z_-]+:.*?##/ {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(SELF)
+
 .PHONY: build all_build init_env build_amd64 build_arm64
-build:
+build: ## Build amd64 and arm64 binaries via Docker
 	@echo "===> Building watchmaker on $(ARCH) host..."
 	@docker run -it --rm --network host -v $(shell pwd):/go/src/watchmaker -w /go/src/watchmaker golang:latest make all_build
 
-all_build: init_env build_amd64 build_arm64
+all_build: init_env build_amd64 build_arm64 ## Install depdendncies and build amd64/arm64 binaries on Linux host
 
 .PHONY: build-env
-build-env:
+build-env: ## Run building environment in Docker container
 	@echo "===> Running build env on $(ARCH) host..."
 	docker run -it --rm --network host -v $(shell pwd):/go/src/watchmaker -w /go/src/watchmaker golang:latest /bin/bash
 
-examples:
+examples: ## Build examples
 	$(MAKE) -C example
 
-.PHONY: init_env_x86_64
-init_env_x86_64:
+.PHONY: init_env_amd64
+init_env_amd64: ## Install dependencies to amd64/x86_64 host
 	@echo "===> Initializing environment ($(ARCH))..."
 	@apt update && apt install -y gcc-12-aarch64-linux-gnu git tar xz-utils \
 	&& wget https://github.com/upx/upx/releases/download/v5.0.0/upx-5.0.0-amd64_linux.tar.xz \
@@ -35,7 +44,7 @@ init_env_x86_64:
 	&& rm -rf upx-5.0.0-amd64_linux*
 
 .PHONY: init_env_arm64
-init_env_arm64:
+init_env_arm64: ## Install dependencies to arm64/aarch64 host
 	@echo "===> Initializing environment ($(ARCH))..."
 	@apt update && apt install -y gcc-12-x86-64-linux-gnu git tar xz-utils \
 	&& wget https://github.com/upx/upx/releases/download/v5.0.0/upx-5.0.0-arm64_linux.tar.xz \
@@ -43,12 +52,13 @@ init_env_arm64:
 	&& mv upx-5.0.0-arm64_linux/upx /usr/local/bin/upx \
 	&& rm -rf upx-5.0.0-arm64_linux*
 
+init_env_x86_64: init_env_amd64
 init_env_aarch64: init_env_arm64
 
-init_env: init_env_$(ARCH)
+init_env: init_env_$(ARCH) ## Install dependencies (auto-detect host arch)
 
-.PHONY: build_amd64_x86_64
-build_amd64_x86_64:
+.PHONY: build_amd64_amd64
+build_amd64_amd64: ## Build amd64 binaries on amd64/x86_64 host
 	@{ \
 	echo "===> Building watchmaker_linux_amd64 on $(ARCH)..." ; \
 	set -x ; \
@@ -61,7 +71,7 @@ build_amd64_x86_64:
 	}
 
 .PHONY: build_amd64_arm64
-build_amd64_arm64:
+build_amd64_arm64: ## Build amd64 binaries on arm64/aarch64 host
 	@{ \
 	echo "===> Building watchmaker_linux_amd64 on $(ARCH)..." ; \
 	set -x ; \
@@ -73,12 +83,13 @@ build_amd64_arm64:
 	upx --lzma bin/watchmaker_linux_amd64 ; \
 	}
 
+build_amd64_x86_64: build_amd64_amd64
 build_amd64_aarch64: build_amd64_arm64
 
-build_amd64: build_amd64_$(ARCH)
+build_amd64: build_amd64_$(ARCH) ## Build amd64 binaries (auto-detect host arch)
 
-.PHONY: build_arm64_x86_64
-build_arm64_x86_64:
+.PHONY: build_arm64_amd64
+build_arm64_amd64: ## Build arm64 binaries on amd64/x86_64 host
 	@{ \
 	echo "===> Building watchmaker_linux_arm64 on $(ARCH)..." ; \
 	set -x ; \
@@ -91,7 +102,7 @@ build_arm64_x86_64:
 	}
 
 .PHONY: build_arm64_arm64
-build_arm64_arm64:
+build_arm64_arm64: ## Build arm64 binaries on arm64/aarch64 host
 	@{ \
 	echo "===> Building watchmaker_linux_arm64 on $(ARCH)..." ; \
 	set -x ; \
@@ -103,11 +114,13 @@ build_arm64_arm64:
 	upx --lzma bin/watchmaker_linux_arm64 ; \
 	}
 
+build_arm64_x86_64: build_arm64_amd64
 build_arm64_aarch64: build_arm64_arm64
 
-build_arm64: build_arm64_$(ARCH)
+build_arm64: build_arm64_$(ARCH) ## Build arm64 binaries (auto-detect host arch)
 
-clean:
+.PHONY: clean
+clean: ## Clean up
 	rm -f fakeclock/*.o
 	rm -rf bin
 	$(MAKE) -C example clean
