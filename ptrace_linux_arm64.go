@@ -3,6 +3,7 @@ package watchmaker
 import (
 	"encoding/binary"
 	"fmt"
+	"log"
 
 	"golang.org/x/sys/unix"
 )
@@ -53,7 +54,6 @@ func (p *TracedProgram) Syscall(number uint64, args ...uint64) (uint64, error) {
 	// arguments are stored in x0, x1, x2, x3, x4, x5 in order
 	regs.Regs[8] = number
 	for index, arg := range args {
-		// All these registers are hard coded for x86 platform
 		if index > 6 {
 			return 0, fmt.Errorf("too many arguments for a syscall")
 		} else {
@@ -77,6 +77,7 @@ func (p *TracedProgram) Syscall(number uint64, args ...uint64) (uint64, error) {
 	}
 
 	// run one instruction, and stop
+	log.Printf("[SYSCALL DEBUG] running %x from %#x", instruction, ip)
 	err = p.Step()
 	if err != nil {
 		return 0, err
@@ -87,6 +88,7 @@ func (p *TracedProgram) Syscall(number uint64, args ...uint64) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
+	log.Printf("[SYSCALL DEBUG] regs: %v", regs)
 
 	// TODO: why "strategy 1" mmap() is failing on arm64 with 0 returned from this proc?
 	// https://stackoverflow.com/questions/37167141/linux-syscalls-and-errno
