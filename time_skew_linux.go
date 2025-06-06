@@ -3,6 +3,7 @@ package watchmaker
 import (
 	"fmt"
 	"log"
+	"runtime"
 	"sync"
 )
 
@@ -73,10 +74,18 @@ type Skew struct {
 }
 
 func GetSkew(c *Config) (*Skew, error) {
-	log.Println("loading timeSkewFakeImage")
-	timeImage, err := LoadFakeImageFromEmbedFs(timeSkewFakeImage, _time)
-	if err != nil {
-		return nil, fmt.Errorf("load fake image err: %v", err)
+	var timeImage *FakeImage
+	var err error
+
+	if runtime.GOARCH == "arm64" {
+		// __NR_time is deprecated on arm64
+		timeImage = nil
+	} else {
+		log.Println("loading timeSkewFakeImage")
+		timeImage, err = LoadFakeImageFromEmbedFs(timeSkewFakeImage, _time)
+		if err != nil {
+			return nil, fmt.Errorf("load fake image err: %v", err)
+		}
 	}
 
 	log.Println("loading clockGettimeSkewFakeImage")
@@ -113,14 +122,18 @@ func (s *Skew) Fork() (*Skew, error) {
 func (s *Skew) Inject(sysPID uint64) error {
 	s.locker.Lock()
 	defer s.locker.Unlock()
+	var err error
 
-	log.Println("injecting time")
-	err := s.time.AttachToProcess(int(sysPID), map[string]uint64{
-		externVarTvSecDelta:  uint64(s.SkewConfig.deltaSeconds),
-		externVarTvNsecDelta: uint64(s.SkewConfig.deltaNanoSeconds),
-	})
-	if err != nil {
-		return err
+	// s.time can be nil on arm64 as __NR_time is deprecated there
+	if s.time != nil {
+		log.Println("injecting time")
+		err = s.time.AttachToProcess(int(sysPID), map[string]uint64{
+			externVarTvSecDelta:  uint64(s.SkewConfig.deltaSeconds),
+			externVarTvNsecDelta: uint64(s.SkewConfig.deltaNanoSeconds),
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	log.Println("injecting clock_gettime")
