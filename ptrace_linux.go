@@ -206,11 +206,12 @@ func (p *TracedProgram) Step() error {
 	return p.Wait()
 }
 
-// Mmap runs mmap syscall
-func (p *TracedProgram) Mmap(length uint64, fd uint64) (uint64, error) {
-	log.Printf("[MMAP DEBUG] Attempting mmap: length=%d, fd=%d, syscall_nr=%d", length, fd, unix.SYS_MMAP)
+// tryMmap attempts a single mmap syscall with error checking
+func (p *TracedProgram) tryMmap(addr, length, prot, flags, fd, offset uint64) (uint64, error) {
+	log.Printf("[MMAP DEBUG] attempting mmap(): len=%d, prot=%#x, flags=%#x, fd=%d, offset=%d, syscall_nr=%d", length, prot, flags, fd, offset, unix.SYS_MMAP)
 
-	result, err := p.Syscall(unix.SYS_MMAP, 0, length, unix.PROT_READ|unix.PROT_WRITE|unix.PROT_EXEC, unix.MAP_ANON|unix.MAP_PRIVATE, fd, 0)
+	result, err := p.Syscall(unix.SYS_MMAP, addr, length, prot, flags, fd, offset)
+	log.Printf("[MMAP DEBUG] mmap syscall returned: result=%#x, err=%v\n", result, err)
 	if err != nil {
 		return 0, err
 	}
@@ -225,6 +226,39 @@ func (p *TracedProgram) Mmap(length uint64, fd uint64) (uint64, error) {
 	}
 
 	return result, nil
+}
+
+// Mmap runs mmap syscall with fallback strategies for arm64
+func (p *TracedProgram) Mmap(length uint64, fd uint64) (uint64, error) {
+	pageSize := uint64(4096)                                   // standard page size
+	alignedLength := (length + pageSize - 1) & ^(pageSize - 1) // round up to page boundary
+
+	log.Printf("[MMAP DEBUG] using aligned len=%d instead of original %d", alignedLength, length)
+
+	// Strategy 1: standard mmap call (size aligned)
+	result, err := p.tryMmap(0, alignedLength, unix.PROT_READ|unix.PROT_WRITE|unix.PROT_EXEC, unix.MAP_ANON|unix.MAP_PRIVATE, fd, 0)
+	if err == nil && result != 0 {
+		log.Printf("[MMAP DEBUG] strategy 1 (standard) succeeded: address=%#x", result)
+		return result, nil
+	}
+	log.Printf("[MMAP DEBUG] strategy 1 failed: %v, result=0x%x", err, result)
+
+	// Strategy 2: larger allocation (2 pages minimum)
+	largerLength := alignedLength
+	if largerLength < 2*pageSize {
+		largerLength = 2 * pageSize
+	}
+	result, err = p.tryMmap(0, largerLength, unix.PROT_READ|unix.PROT_WRITE|unix.PROT_EXEC, unix.MAP_ANON|unix.MAP_PRIVATE, fd, 0)
+	if err == nil && result != 0 {
+		log.Printf("[MMAP DEBUG] strategy 2 (larger allocation) succeeded: address=%#x, allocated=%d", result, largerLength)
+		return result, nil
+	}
+	log.Printf("[MMAP DEBUG] strategy 2 failed: %v, result=0x%x", err, result)
+
+	// TODO: Strategy 3: map without EXEC and enable it with MPROTECT?
+
+	// all strategies failed
+	return 0, fmt.Errorf("all mmap strategies failed")
 }
 
 // ReadSlice reads from addr and return a slice
