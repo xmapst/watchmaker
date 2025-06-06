@@ -17,6 +17,17 @@ OBJ_SRCS_amd64 := fake_clock_gettime fake_gettimeofday fake_time
 # on modern arm64 kernels time() works via gettimeofday()
 OBJ_SRCS_arm64 := fake_clock_gettime fake_gettimeofday
 
+COMPRESS_GO_BINARIES ?= 0
+
+ifeq ($(COMPRESS_GO_BINARIES),1)
+ifndef UPX
+ifeq ($(shell upx --version >/dev/null 2>&1 || echo FAIL),)
+UPX = upx
+endif
+endif
+UPX ?= $(error upx not found)
+endif
+
 .PHONY: help
 help: ## Show help message (list targets)
 	@awk 'BEGIN {FS = ":.*##"; printf "\nTargets:\n"} /^[$$()% 0-9a-zA-Z_-]+:.*?##/ {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(SELF)
@@ -39,7 +50,8 @@ SHOW_ENV_VARS = \
 	ARCH \
 	CFLAGS \
 	OBJ_SRCS_amd64 \
-	OBJ_SRCS_arm64
+	OBJ_SRCS_arm64 \
+	COMPRESS_GO_BINARIES
 
 show-env: $(addprefix show-var-, $(SHOW_ENV_VARS)) ## Show environment details
 
@@ -91,8 +103,10 @@ build_amd64_amd64: ## Build amd64 binaries on amd64/x86_64 host
 		objdump -x fakeclock/$${src}_amd64.o ; \
 	done ; \
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_amd64 ./cmd/... ; \
-	upx --force-overwrite --lzma bin/watchmaker_linux_amd64 ; \
 	}
+ifeq ($(COMPRESS_GO_BINARIES),1)
+	$(UPX) --force-overwrite --lzma bin/watchmaker_linux_amd64
+endif
 
 .PHONY: build_amd64_arm64
 build_amd64_arm64: ## Build amd64 binaries on arm64/aarch64 host
@@ -104,8 +118,10 @@ build_amd64_arm64: ## Build amd64 binaries on arm64/aarch64 host
 		x86_64-linux-gnu-objdump -x fakeclock/$${src}_amd64.o ; \
 	done ; \
 	CGO_ENABLED=0 CC=x86_64-linux-gnu-gcc-12 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_amd64 ./cmd/... ; \
-	upx --lzma bin/watchmaker_linux_amd64 ; \
 	}
+ifeq ($(COMPRESS_GO_BINARIES),1)
+	$(UPX) --lzma bin/watchmaker_linux_amd64
+endif
 
 build_amd64_x86_64: build_amd64_amd64
 build_amd64_aarch64: build_amd64_arm64
@@ -122,8 +138,10 @@ build_arm64_amd64: ## Build arm64 binaries on amd64/x86_64 host
 		aarch64-linux-gnu-objdump -x fakeclock/$${src}_arm64.o ; \
 	done; \
 	CGO_ENABLED=0 CC=aarch64-linux-gnu-gcc-12 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_arm64 ./cmd/... ; \
-	upx --lzma bin/watchmaker_linux_arm64 ; \
 	}
+ifeq ($(COMPRESS_GO_BINARIES),1)
+	$(UPX) --lzma bin/watchmaker_linux_arm64
+endif
 
 .PHONY: build_arm64_arm64
 build_arm64_arm64: ## Build arm64 binaries on arm64/aarch64 host
@@ -135,8 +153,10 @@ build_arm64_arm64: ## Build arm64 binaries on arm64/aarch64 host
 		objdump -x fakeclock/$${src}_arm64.o ; \
 	done ; \
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_arm64 ./cmd/... ; \
-	upx --lzma bin/watchmaker_linux_arm64 ; \
 	}
+ifeq ($(COMPRESS_GO_BINARIES),1)
+	$(UPX) --lzma bin/watchmaker_linux_arm64
+endif
 
 build_arm64_x86_64: build_arm64_amd64
 build_arm64_aarch64: build_arm64_arm64
