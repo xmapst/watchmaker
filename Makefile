@@ -19,6 +19,27 @@ OBJ_SRCS := fake_clock_gettime fake_gettimeofday fake_time
 help: ## Show help message (list targets)
 	@awk 'BEGIN {FS = ":.*##"; printf "\nTargets:\n"} /^[$$()% 0-9a-zA-Z_-]+:.*?##/ {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(SELF)
 
+show-var-%:
+	@{ \
+	escaped_v="$(subst ",\",$($*))" ; \
+	if [ -n "$$escaped_v" ]; then v="$$escaped_v"; else v="(undefined)"; fi; \
+	printf "%-19s %s\n" "$*" "$$v"; \
+	}
+
+SHOW_ENV_VARS = \
+	TOPDIR \
+	SELF \
+	GIT_URL \
+	GIT_BRANCH \
+	GIT_COMMIT \
+	BUILD_TIME \
+	LDFLAGS \
+	ARCH \
+	CFLAGS \
+	OBJ_SRCS
+
+show-env: $(addprefix show-var-, $(SHOW_ENV_VARS)) ## Show environment details
+
 .PHONY: build all_build init_env build_amd64 build_arm64
 build: ## Build amd64 and arm64 binaries via Docker
 	@echo "===> Building watchmaker on $(ARCH) host..."
