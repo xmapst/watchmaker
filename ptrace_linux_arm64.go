@@ -88,6 +88,9 @@ func (p *TracedProgram) Syscall(number uint64, args ...uint64) (uint64, error) {
 		return 0, err
 	}
 
+	// TODO: why "strategy 1" mmap() is failing on arm64 with 0 returned from this proc?
+	// https://stackoverflow.com/questions/37167141/linux-syscalls-and-errno
+
 	return regs.Regs[0], p.Restore()
 }
 
