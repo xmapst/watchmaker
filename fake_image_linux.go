@@ -34,7 +34,7 @@ func NewFakeImage(symbolName string, content []byte, offset map[string]int) *Fak
 
 // AttachToProcess would use ptrace to replace the VDSO ELF entry with FakeImage.
 // Each item in parameter "variables" needs a corresponding entry in FakeImage.offset.
-func (it *FakeImage) AttachToProcess(pid int, variables map[string]uint64) (err error) {
+func (it *FakeImage) AttachToProcess(pid int, variables map[string]uint64) error {
 	log.Printf("%s: got %d variables (%d in offset)", it.symbolName, len(variables), len(it.offset))
 
 	for k, v := range it.offset {
@@ -96,7 +96,7 @@ func (it *FakeImage) AttachToProcess(pid int, variables map[string]uint64) (err 
 		}
 	}
 
-	return
+	return nil
 }
 
 func FindVDSOEntry(program *TracedProgram) (*Entry, error) {
