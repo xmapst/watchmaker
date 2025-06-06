@@ -11,7 +11,7 @@ LDFLAGS := "-w -s"
 
 ARCH := $(shell uname -m)
 
-CFLAGS := -fPIE -O2
+CFLAGS := -fPIE -O2 -ffreestanding -nostdlib -fno-builtin
 
 OBJ_SRCS_amd64 := fake_clock_gettime fake_gettimeofday fake_time
 # on modern arm64 kernels time() works via gettimeofday()
