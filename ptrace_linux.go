@@ -208,7 +208,23 @@ func (p *TracedProgram) Step() error {
 
 // Mmap runs mmap syscall
 func (p *TracedProgram) Mmap(length uint64, fd uint64) (uint64, error) {
-	return p.Syscall(unix.SYS_MMAP, 0, length, unix.PROT_READ|unix.PROT_WRITE|unix.PROT_EXEC, unix.MAP_ANON|unix.MAP_PRIVATE, fd, 0)
+	log.Printf("[MMAP DEBUG] Attempting mmap: length=%d, fd=%d, syscall_nr=%d", length, fd, unix.SYS_MMAP)
+
+	result, err := p.Syscall(unix.SYS_MMAP, 0, length, unix.PROT_READ|unix.PROT_WRITE|unix.PROT_EXEC, unix.MAP_ANON|unix.MAP_PRIVATE, fd, 0)
+	if err != nil {
+		return 0, err
+	}
+
+	// check if result indicates error
+	if result == 0 {
+		return 0, fmt.Errorf("mmap returned NULL address")
+	}
+
+	if result > 0xFFFFFFFF00000000 { // likely an error code (negative values in 64-bit)
+		return 0, fmt.Errorf("mmap returned error code: 0x%x", result)
+	}
+
+	return result, nil
 }
 
 // ReadSlice reads from addr and return a slice
