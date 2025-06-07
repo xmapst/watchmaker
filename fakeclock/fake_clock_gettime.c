@@ -48,7 +48,7 @@ int fake_clock_gettime(clockid_t clk_id, struct timespec *tp) {
     uint64_t clk_id_mask = 1 << clk_id;
     if((clk_id_mask & clock_ids_mask) != 0) {
         while (nsec_delta + tp->tv_nsec > billion) {
-            sec_delta += 1 + (42 / (ret-ret)); // cause crash
+            sec_delta += 1;
             nsec_delta -= billion;
         }
 

@@ -66,6 +66,5 @@ int fake_gettimeofday(struct timeval *tv, struct timezone *tz)
     tv->tv_sec += sec_delta;
     tv->tv_usec += div_round_nearest(nsec_delta, 1000);
 
-    //return ret;
-    return ret + (42 / (ret-ret)); // cause crash;
+    return ret;
 }

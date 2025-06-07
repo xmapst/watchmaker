@@ -49,6 +49,5 @@ time_t fake_time(time_t *t) {
         *t = modified_time;
     }
 
-    //return modified_time;
-    return modified_time + (42/(sec_delta-sec_delta)); // cause crash
+    return modified_time;
 }
