@@ -13,6 +13,11 @@ ARCH := $(shell uname -m)
 
 CFLAGS := -fPIE -O2 -ffreestanding -nostdlib -fno-builtin
 
+ifeq ($(ARCH),aarch64)
+# this is expected by asset_linux_arm64.go
+CFLAGS += -mcmodel=tiny
+endif
+
 OBJ_SRCS_amd64 := fake_clock_gettime fake_gettimeofday fake_time
 # on modern arm64 kernels time() works via gettimeofday()
 OBJ_SRCS_arm64 := fake_clock_gettime fake_gettimeofday
