@@ -100,7 +100,8 @@ build_amd64_amd64: ## Build amd64 binaries on amd64/x86_64 host
 	set -ex ; \
 	for src in $(OBJ_SRCS_amd64); do \
 		gcc -c fakeclock/$${src}.c $(CFLAGS) -o fakeclock/$${src}_amd64.o ; \
-		objdump -xd fakeclock/$${src}_amd64.o ; \
+		objdump -xr fakeclock/$${src}_amd64.o ; \
+		objdump -d fakeclock/$${src}_amd64.o ; \
 	done ; \
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_amd64 ./cmd/... ; \
 	}
@@ -115,7 +116,8 @@ build_amd64_arm64: ## Build amd64 binaries on arm64/aarch64 host
 	set -ex ; \
 	for src in $(OBJ_SRCS_amd64); do \
 		x86_64-linux-gnu-gcc-12 -c fakeclock/$${src}.c $(CFLAGS) -o fakeclock/$${src}_amd64.o ; \
-		x86_64-linux-gnu-objdump -xd fakeclock/$${src}_amd64.o ; \
+		x86_64-linux-gnu-objdump -xr fakeclock/$${src}_amd64.o ; \
+		x86_64-linux-gnu-objdump -d fakeclock/$${src}_amd64.o ; \
 	done ; \
 	CGO_ENABLED=0 CC=x86_64-linux-gnu-gcc-12 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_amd64 ./cmd/... ; \
 	}
@@ -135,7 +137,8 @@ build_arm64_amd64: ## Build arm64 binaries on amd64/x86_64 host
 	set -ex ; \
 	for src in $(OBJ_SRCS_arm64); do \
 		aarch64-linux-gnu-gcc-12 -c fakeclock/$${src}.c $(CFLAGS) -o fakeclock/$${src}_arm64.o ; \
-		aarch64-linux-gnu-objdump -xd fakeclock/$${src}_arm64.o ; \
+		aarch64-linux-gnu-objdump -xr fakeclock/$${src}_arm64.o ; \
+		aarch64-linux-gnu-objdump -d fakeclock/$${src}_arm64.o ; \
 	done; \
 	CGO_ENABLED=0 CC=aarch64-linux-gnu-gcc-12 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_arm64 ./cmd/... ; \
 	}
@@ -150,7 +153,8 @@ build_arm64_arm64: ## Build arm64 binaries on arm64/aarch64 host
 	set -ex ; \
 	for src in $(OBJ_SRCS_arm64); do \
 		gcc -c fakeclock/$${src}.c $(CFLAGS) -o fakeclock/$${src}_arm64.o ; \
-		objdump -xd fakeclock/$${src}_arm64.o ; \
+		objdump -xr fakeclock/$${src}_arm64.o ; \
+		objdump -d fakeclock/$${src}_arm64.o ; \
 	done ; \
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags $(LDFLAGS) -o bin/watchmaker_linux_arm64 ./cmd/... ; \
 	}
