@@ -422,12 +422,12 @@ func (p *TracedProgram) FindSymbolInEntry(symbolName string, entry *Entry) (uint
 		return 0, 0, err
 	}
 	for _, symbol := range symbols {
-		log.Printf("[SYMBOL DEBUG] seeing '%s' with len=%d at offset=%#x", symbol.Name, symbol.Size, symbol.Value)
+		offset := symbol.Value
+		location := entry.StartAddress + (offset - loadOffset)
+		log.Printf("[SYMBOL DEBUG] seeing '%s' with len=%d and offset=%#x at %#x", symbol.Name, symbol.Size, offset, location)
 
 		// try direct match first
 		if symbol.Name == symbolName {
-			offset := symbol.Value
-			location := entry.StartAddress + (offset - loadOffset)
 			log.Printf("[SYMBOL DEBUG] found '%s' at %#x", symbol.Name, location)
 			return location, symbol.Size, nil
 		}
@@ -436,9 +436,7 @@ func (p *TracedProgram) FindSymbolInEntry(symbolName string, entry *Entry) (uint
 		if runtime.GOARCH == "arm64" {
 			targetSymbol := "__kernel_" + symbolName
 			if symbol.Name == targetSymbol {
-				offset := symbol.Value
-				location := entry.StartAddress + (offset - loadOffset)
-				log.Printf("[SYMBOL DEBUG] found '%s' as '%s' at %#x", symbolName, targetSymbol, location)
+				log.Printf("[SYMBOL DEBUG] found '%s' as '%s' at %#x", symbolName, symbol.Name, location)
 				return location, symbol.Size, nil
 			}
 		}
