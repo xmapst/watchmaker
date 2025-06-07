@@ -172,7 +172,8 @@ void serverThread() {
                 std::thread([client_fd]() {
                     while (true) {
                         std::ostringstream json_response;
-                        json_response << "{\"clock_gettime\": \"" << clockGetTimeFunc() << "\",";
+                        json_response << "{\"pid\": " << getpid() << ",";
+                        json_response << "\"clock_gettime\": \"" << clockGetTimeFunc() << "\",";
                         json_response << "\"time\": \"" << timeFunc() << "\",";
                         json_response << "\"gettimeofday\": \"" << gettimeofdayFunc() << "\"}\n";
                         std::string response = json_response.str();
@@ -215,7 +216,8 @@ void serverThread() {
                 std::thread([client_fd]() {
                     while (true) {
                         std::ostringstream json_response;
-                        json_response << "{\"clock_gettime\": \"" << clockGetTimeFunc() << "\",";
+                        json_response << "{\"pid\": " << getpid() << ",";
+                        json_response << "\"clock_gettime\": \"" << clockGetTimeFunc() << "\",";
                         json_response << "\"time\": \"" << timeFunc() << "\",";
                         json_response << "\"gettimeofday\": \"" << gettimeofdayFunc() << "\"}\n";
                         std::string response = json_response.str();
@@ -249,7 +251,7 @@ int main() {
     server_thread.detach();
     // 主线程每秒打印三种时间格式
     while (true) {
-        std::cout << "clock_gettime: " << clockGetTimeFunc()
+        std::cout << "[" << getpid() << "] clock_gettime: " << clockGetTimeFunc()
                   << ", time: " << timeFunc()
                   << ", gettimeofday: " << gettimeofdayFunc() << std::endl;
         sleep(1);
