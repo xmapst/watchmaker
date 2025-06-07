@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -409,13 +410,12 @@ func (p *TracedProgram) FindSymbolInEntry(symbolName string, entry *Entry) (uint
 	for _, prog := range vdsoElf.Progs {
 		if prog.Type == elf.PT_LOAD {
 			loadOffset = prog.Vaddr - prog.Off
+			log.Printf("[SYMBOL DEBUG] loadOffset=%#x", loadOffset)
 
 			// break here is enough for vdso
 			break
 		}
 	}
-
-	log.Printf("[SYMBOL DEBUG] loadOffset=%#x", loadOffset)
 
 	symbols, err := vdsoElf.DynamicSymbols()
 	if err != nil {
@@ -423,10 +423,21 @@ func (p *TracedProgram) FindSymbolInEntry(symbolName string, entry *Entry) (uint
 	}
 	for _, symbol := range symbols {
 		log.Printf("[SYMBOL DEBUG] found '%s' with len=%d at %#x", symbol.Name, symbol.Size, symbol.Value)
+
+		// try direct match first
 		if symbol.Name == symbolName {
 			offset := symbol.Value
-
 			return entry.StartAddress + (offset - loadOffset), symbol.Size, nil
+		}
+
+		// on arm64 try with "__kernel_" prefix
+		if runtime.GOARCH == "arm64" {
+			targetSymbol := "__kernel_" + symbolName
+			if symbol.Name == targetSymbol {
+				log.Printf("[SYMBOL DEBUG] found '%s' as '%s' with len=%d at %#x", symbolName, targetSymbol, symbol.Size, symbol.Value)
+				offset := symbol.Value
+				return entry.StartAddress + (offset - loadOffset), symbol.Size, nil
+			}
 		}
 	}
 	return 0, 0, fmt.Errorf("cannot find symbol '%s'", symbolName)
