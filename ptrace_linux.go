@@ -439,6 +439,17 @@ func (p *TracedProgram) FindSymbolInEntry(symbolName string, entry *Entry) (uint
 				return entry.StartAddress + (offset - loadOffset), symbol.Size, nil
 			}
 		}
+
+		/*
+			TODO: should we try "__vdso_" prefix as well? On amd64 you could get e.g. this:
+			2025/06/07 08:57:15 ptrace_linux.go:395: [SYMBOL DEBUG] looking for symbol 'gettimeofday'
+			2025/06/07 08:57:15 ptrace_linux.go:413: [SYMBOL DEBUG] loadOffset=0x0
+			2025/06/07 08:57:15 ptrace_linux.go:425: [SYMBOL DEBUG] found 'clock_gettime' with len=5 at 0xe40
+			2025/06/07 08:57:15 ptrace_linux.go:425: [SYMBOL DEBUG] found '__vdso_gettimeofday' with len=5 at 0xe00
+			2025/06/07 08:57:15 ptrace_linux.go:425: [SYMBOL DEBUG] found 'clock_getres' with len=117 at 0xe50
+			2025/06/07 08:57:15 ptrace_linux.go:425: [SYMBOL DEBUG] found '__vdso_clock_getres' with len=117 at 0xe50
+			2025/06/07 08:57:15 ptrace_linux.go:425: [SYMBOL DEBUG] found 'gettimeofday' with len=5 at 0xe00
+		*/
 	}
 	return 0, 0, fmt.Errorf("cannot find symbol '%s'", symbolName)
 }
