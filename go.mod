@@ -1,5 +1,5 @@
-module github.com/xmapst/watchmaker
+module github.com/busybox-org/watchmaker
 
 go 1.23.3
 
-require golang.org/x/sys v0.31.0
+require golang.org/x/sys v0.33.0

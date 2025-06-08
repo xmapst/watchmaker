@@ -8,12 +8,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
-	"runtime"
 
-	"github.com/xmapst/watchmaker"
+	"github.com/busybox-org/watchmaker"
 )
 
 var (
@@ -42,7 +42,7 @@ func main() {
 
 	flag.Uint64Var(&pid, "pid", 0, "pid of target program")
 	flag.StringVar(&fakeTime, "faketime", "", "fake time (incremental/absolute value)")
-	flag.StringVar(&clockIdsSlice, "clockids", "", "clockids to modify, default is " + clockIdsSliceDefault)
+	flag.StringVar(&clockIdsSlice, "clockids", "", "clockids to modify, default is "+clockIdsSliceDefault)
 	flag.Parse()
 
 	if pid <= 0 {

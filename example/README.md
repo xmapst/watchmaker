@@ -2,7 +2,7 @@
 
 ## clone repository
 ```shell
-git clone https://github.com/xmapst/watchmaker.git
+git clone https://github.com/busybox-org/watchmaker.git
 ```
 
 ## build example cpp program
