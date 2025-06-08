@@ -11,6 +11,7 @@ jobs:
   build:
     strategy:
       matrix:
+        fail-fast: false
         include:
           - architecture: amd64
             runner_os: ubuntu-24.04
