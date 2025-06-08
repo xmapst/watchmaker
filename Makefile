@@ -11,12 +11,17 @@ LDFLAGS := "-w -s"
 
 ARCH := $(shell uname -m)
 
-CFLAGS := -fPIE -O2 -ffreestanding -nostdlib -fno-builtin
+# CFLAGS for direct (native) compilation
+CFLAGS_DIRECT := -fPIE -O2 -ffreestanding -nostdlib -fno-builtin
 
 ifeq ($(ARCH),aarch64)
 # this is expected by asset_linux_arm64.go
-CFLAGS += -mcmodel=tiny
+CFLAGS_DIRECT += -mcmodel=tiny
 endif
+
+# CFLAGS for cross-compilation (on e.g. docker builder)
+CFLAGS_CC_amd64 := -fPIE -O2 -ffreestanding -nostdlib -fno-builtin
+CFLAGS_CC_arm64 := -fPIE -O2 -ffreestanding -nostdlib -fno-builtin -mcmodel=tiny
 
 OBJ_SRCS_amd64 := fake_clock_gettime fake_gettimeofday fake_time
 # on modern arm64 kernels time() works via gettimeofday()
@@ -53,7 +58,9 @@ SHOW_ENV_VARS = \
 	BUILD_TIME \
 	LDFLAGS \
 	ARCH \
-	CFLAGS \
+	CFLAGS_DIRECT \
+	CFLAGS_CC_amd64 \
+	CFLAGS_CC_arm64 \
 	OBJ_SRCS_amd64 \
 	OBJ_SRCS_arm64 \
 	COMPRESS_GO_BINARIES
@@ -104,7 +111,7 @@ build_amd64_amd64: ## Build amd64 binaries on amd64/x86_64 host
 	echo "===> Building watchmaker_linux_amd64 on $(ARCH)..." ; \
 	set -ex ; \
 	for src in $(OBJ_SRCS_amd64); do \
-		gcc -c fakeclock/$${src}.c $(CFLAGS) -o fakeclock/$${src}_amd64.o ; \
+		gcc -c fakeclock/$${src}.c $(CFLAGS_DIRECT) -o fakeclock/$${src}_amd64.o ; \
 		objdump -xr fakeclock/$${src}_amd64.o ; \
 		objdump -d fakeclock/$${src}_amd64.o ; \
 	done ; \
@@ -120,7 +127,7 @@ build_amd64_arm64: ## Build amd64 binaries on arm64/aarch64 host
 	echo "===> Building watchmaker_linux_amd64 on $(ARCH)..." ; \
 	set -ex ; \
 	for src in $(OBJ_SRCS_amd64); do \
-		x86_64-linux-gnu-gcc-12 -c fakeclock/$${src}.c $(CFLAGS) -o fakeclock/$${src}_amd64.o ; \
+		x86_64-linux-gnu-gcc-12 -c fakeclock/$${src}.c $(CFLAGS_CC_amd64) -o fakeclock/$${src}_amd64.o ; \
 		x86_64-linux-gnu-objdump -xr fakeclock/$${src}_amd64.o ; \
 		x86_64-linux-gnu-objdump -d fakeclock/$${src}_amd64.o ; \
 	done ; \
@@ -141,7 +148,7 @@ build_arm64_amd64: ## Build arm64 binaries on amd64/x86_64 host
 	echo "===> Building watchmaker_linux_arm64 on $(ARCH)..." ; \
 	set -ex ; \
 	for src in $(OBJ_SRCS_arm64); do \
-		aarch64-linux-gnu-gcc-12 -c fakeclock/$${src}.c $(CFLAGS) -o fakeclock/$${src}_arm64.o ; \
+		aarch64-linux-gnu-gcc-12 -c fakeclock/$${src}.c $(CFLAGS_CC_arm64) -o fakeclock/$${src}_arm64.o ; \
 		aarch64-linux-gnu-objdump -xr fakeclock/$${src}_arm64.o ; \
 		aarch64-linux-gnu-objdump -d fakeclock/$${src}_arm64.o ; \
 	done; \
@@ -157,7 +164,7 @@ build_arm64_arm64: ## Build arm64 binaries on arm64/aarch64 host
 	echo "===> Building watchmaker_linux_arm64 on $(ARCH)..." ; \
 	set -ex ; \
 	for src in $(OBJ_SRCS_arm64); do \
-		gcc -c fakeclock/$${src}.c $(CFLAGS) -o fakeclock/$${src}_arm64.o ; \
+		gcc -c fakeclock/$${src}.c $(CFLAGS_DIRECT) -o fakeclock/$${src}_arm64.o ; \
 		objdump -xr fakeclock/$${src}_arm64.o ; \
 		objdump -d fakeclock/$${src}_arm64.o ; \
 	done ; \
