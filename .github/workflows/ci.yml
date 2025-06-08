@@ -9,10 +9,13 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
     strategy:
       matrix:
         architecture: [amd64, arm64]
+        runner_os:
+          - ${{ 'ubuntu-24.04' if eq(matrix.architecture, 'amd64') }}
+          - ${{ 'ubuntu-24.04-arm64' if eq(matrix.architecture, 'arm64') }}
+    runs-on: ${{ matrix.runner_os }}
     name: build-${{ matrix.architecture }}
     steps:
       - uses: actions/checkout@v4
