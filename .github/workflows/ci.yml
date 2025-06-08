@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: amd64
+            runner_os: ubuntu-24.04
+          - architecture: arm64
+            runner_os: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner_os }}
+    name: build-${{ matrix.architecture }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+      - name: Show environment
+        run: make show-env
+      - name: Build watchmaker
+        run: make build_native
+      - name: Build examples
+        run: make examples
+      - name: Run tests
+        run: make test
+      - name: Save binaries as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: watchmaker-${{ matrix.architecture }}
+          path: |
+            bin/watchmaker*
+            fakeclock/*.o
+          retention-days: 14

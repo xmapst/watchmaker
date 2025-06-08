@@ -3,6 +3,7 @@
 TOPDIR := $(realpath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 SELF := $(abspath $(lastword $(MAKEFILE_LIST)))
 
+GITHUB_RUN_ID ?= 0
 GIT_URL := $(shell git remote -v|grep push|awk '{print $$2}')
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 GIT_COMMIT := $(shell git rev-parse HEAD)
@@ -52,6 +53,7 @@ show-var-%:
 SHOW_ENV_VARS = \
 	TOPDIR \
 	SELF \
+	GITHUB_RUN_ID \
 	GIT_URL \
 	GIT_BRANCH \
 	GIT_COMMIT \
@@ -80,7 +82,7 @@ build-env: ## Run building environment in Docker container
 	docker run -it --rm --network host -v $(shell pwd):/go/src/watchmaker -w /go/src/watchmaker golang:latest /bin/bash
 
 examples: ## Build examples
-	$(MAKE) -C example
+	$(MAKE) -C example build
 
 .PHONY: init_env_amd64
 init_env_amd64: ## Install dependencies to amd64/x86_64 host
@@ -179,8 +181,17 @@ build_arm64_aarch64: build_arm64_arm64
 
 build_arm64: build_arm64_$(ARCH) ## Build arm64 binaries (auto-detect host arch)
 
+build_x86_64: build_amd64
+build_aarch64: build_arm64
+build_native: build_$(ARCH)
+
+.PHONY: test
+test: ## Run tests
+	GITHUB_RUN_ID=$(GITHUB_RUN_ID) make -C test test
+
 .PHONY: clean
 clean: ## Clean up
 	rm -f fakeclock/*.o
 	rm -rf bin
 	$(MAKE) -C example clean
+	$(MAKE) -C test clean
