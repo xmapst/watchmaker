@@ -35,3 +35,11 @@ jobs:
         run: make examples
       - name: Run tests
         run: make test
+      - name: Save binaries as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: watchmaker-${{ matrix.architecture }}
+          path: |
+            bin/watchmaker*
+            fakeclock/*.o
+          retention-days: 14
