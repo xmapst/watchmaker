@@ -231,7 +231,7 @@ func (p *TracedProgram) tryMmap(addr, length, prot, flags, fd, offset uint64) (u
 
 // Mmap runs mmap syscall with fallback strategies for arm64
 func (p *TracedProgram) Mmap(length uint64, fd uint64) (uint64, error) {
-	pageSize := uint64(4096)                                   // standard page size
+	pageSize := uint64(os.Getpagesize())
 	alignedLength := (length + pageSize - 1) & ^(pageSize - 1) // round up to page boundary
 
 	log.Printf("[MMAP DEBUG] using aligned len=%d instead of original %d", alignedLength, length)
