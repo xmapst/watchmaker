@@ -82,7 +82,7 @@ build-env: ## Run building environment in Docker container
 	docker run -it --rm --network host -v $(shell pwd):/go/src/watchmaker -w /go/src/watchmaker golang:latest /bin/bash
 
 examples: ## Build examples
-	$(MAKE) -C example
+	$(MAKE) -C example build
 
 .PHONY: init_env_amd64
 init_env_amd64: ## Install dependencies to amd64/x86_64 host

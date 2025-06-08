@@ -8,7 +8,7 @@ fi
 
 TESTPROC="$1"
 TESTROOT="$2"
-OUTPUT=$(mktemp "/tmp/${TESTPROC}.XXXXXX")
+OUTPUT=$(mktemp "/tmp/test-${TESTPROC}.XXXXXX")
 
 cleanup() {
     rm -f "${OUTPUT}"
