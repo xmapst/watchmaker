@@ -3,6 +3,7 @@
 TOPDIR := $(realpath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 SELF := $(abspath $(lastword $(MAKEFILE_LIST)))
 
+GITHUB_RUN_ID ?= 0
 GIT_URL := $(shell git remote -v|grep push|awk '{print $$2}')
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 GIT_COMMIT := $(shell git rev-parse HEAD)
@@ -52,6 +53,7 @@ show-var-%:
 SHOW_ENV_VARS = \
 	TOPDIR \
 	SELF \
+	GITHUB_RUN_ID \
 	GIT_URL \
 	GIT_BRANCH \
 	GIT_COMMIT \
@@ -185,7 +187,7 @@ build_native: build_$(ARCH)
 
 .PHONY: test
 test: ## Run tests
-	make -C test test
+	GITHUB_RUN_ID=$(GITHUB_RUN_ID) make -C test test
 
 .PHONY: clean
 clean: ## Clean up

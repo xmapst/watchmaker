@@ -1,5 +1,11 @@
 #!/bin/sh -eux
 
+if [ "${GITHUB_RUN_ID}" -gt 0 ]; then
+    _SUDO="sudo"
+else
+    _SUDO=
+fi
+
 TESTPROC="$1"
 TESTROOT="$2"
 OUTPUT=$(mktemp "/tmp/${TESTPROC}.XXXXXX")
@@ -23,7 +29,7 @@ pid=$!
 
 sleep 1
 
-"${TESTROOT}/../bin/watchmaker_linux_${_GOARCH}" --faketime '2021-01-01' --pid "$pid"
+${_SUDO} "${TESTROOT}/../bin/watchmaker_linux_${_GOARCH}" --faketime '2021-01-01' --pid "$pid"
 
 wait
 
