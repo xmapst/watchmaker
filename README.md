@@ -4,7 +4,7 @@ injector which change the time inside the process instead of the host.
 
 ## Install
 ```shell
-wget https://github.com/xmapst/watchmaker/releases/download/v0.0.1-rc1/watchmaker_linux_amd64 -O /bin/watchmaker
+wget https://github.com/xmapst/watchmaker/releases/download/v0.0.2/watchmaker_linux_amd64 -O /bin/watchmaker
 chmod +x /bin/watchmaker
 ```
 
