@@ -10,8 +10,8 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
-        fail-fast: false
         include:
           - architecture: amd64
             runner_os: ubuntu-24.04
