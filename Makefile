@@ -179,6 +179,10 @@ build_arm64_aarch64: build_arm64_arm64
 
 build_arm64: build_arm64_$(ARCH) ## Build arm64 binaries (auto-detect host arch)
 
+build_x86_64: build_amd64
+build_aarch64: build_arm64
+build_native: build_$(ARCH)
+
 .PHONY: clean
 clean: ## Clean up
 	rm -f fakeclock/*.o

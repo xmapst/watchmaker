@@ -10,6 +10,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        architecture: [amd64, arm64]
+    name: build-${{ matrix.architecture }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,6 +25,6 @@ jobs:
       - name: Show environment
         run: make show-env
       - name: Build watchmaker
-        run: make build_amd64
+        run: make build_native
       - name: Build examples
         run: make examples
