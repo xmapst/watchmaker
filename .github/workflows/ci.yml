@@ -34,4 +34,4 @@ jobs:
       - name: Build examples
         run: make examples
       - name: Run tests
-        run: make test
+        run: sudo make test
