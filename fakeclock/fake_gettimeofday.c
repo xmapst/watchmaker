@@ -2,7 +2,6 @@
 #include <sys/time.h>
 #include <inttypes.h>
 #include <syscall.h>
-#include <math.h>
 
 extern int64_t TV_SEC_DELTA;
 extern int64_t TV_NSEC_DELTA;
@@ -38,6 +37,12 @@ inline int real_gettimeofday(struct timeval *tv, struct timezone *tz)
 }
 #endif
 
+/* replace the libm call with integer rounding — no libm needed */
+static inline int64_t div_round_nearest(int64_t n, int64_t d)
+{
+    return (n >= 0) ? (n + d/2) / d : -(( -n + d/2) / d);
+}
+
 int fake_gettimeofday(struct timeval *tv, struct timezone *tz)
 {
     int ret = real_gettimeofday(tv, tz);
@@ -59,7 +64,7 @@ int fake_gettimeofday(struct timeval *tv, struct timezone *tz)
     }
 
     tv->tv_sec += sec_delta;
-    tv->tv_usec += round(nsec_delta/1000);
+    tv->tv_usec += div_round_nearest(nsec_delta, 1000);
 
     return ret;
 }

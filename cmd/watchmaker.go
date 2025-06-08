@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"runtime"
 
 	"github.com/xmapst/watchmaker"
 )
@@ -27,9 +28,21 @@ func init() {
 }
 
 func main() {
+	var clockIdsSliceDefault string
+	if runtime.GOARCH == "arm64" {
+		// on modern arm64 there is no __NR_time syscall;
+		// glibc is using clock_gettime() wrapper [1] with CLOCK_REALTIME_COARSE clockid [2]
+		//
+		// [1] https://sourceware.org/git/?p=glibc.git;a=blob;f=time/time.c;h=d5dcb2e7ed83bc491ed026caf914caf4f1ae9202;hb=c804cd1c00adde061ca51711f63068c103e94eef
+		// [2] https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/time-clockid.h;h=91543b69e47ce2828316ff0b3361ec435159690e;hb=c804cd1c00adde061ca51711f63068c103e94eef
+		clockIdsSliceDefault = "CLOCK_REALTIME,CLOCK_REALTIME_COARSE"
+	} else {
+		clockIdsSliceDefault = "CLOCK_REALTIME"
+	}
+
 	flag.Uint64Var(&pid, "pid", 0, "pid of target program")
 	flag.StringVar(&fakeTime, "faketime", "", "fake time (incremental/absolute value)")
-	flag.StringVar(&clockIdsSlice, "clockids", "", "clockids to modify, default is CLOCK_REALTIME")
+	flag.StringVar(&clockIdsSlice, "clockids", "", "clockids to modify, default is " + clockIdsSliceDefault)
 	flag.Parse()
 
 	if pid <= 0 {
@@ -39,7 +52,7 @@ func main() {
 		log.Fatalln("faketime can't is empty")
 	}
 	if clockIdsSlice == "" {
-		clockIdsSlice = "CLOCK_REALTIME"
+		clockIdsSlice = clockIdsSliceDefault
 	}
 	log.Println("pid:", pid, "faketime:", fakeTime, "clockids:", clockIdsSlice)
 

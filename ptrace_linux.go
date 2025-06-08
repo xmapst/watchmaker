@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -108,7 +109,7 @@ func Trace(pid int) (*TracedProgram, error) {
 				return nil, err
 			}
 
-			//log.Println("attach successfully, process task id", tid)
+			log.Println("attach successfully, process task id", tid)
 			tids[tid] = true
 			tidMap[tid] = true
 		}
@@ -148,7 +149,7 @@ func Trace(pid int) (*TracedProgram, error) {
 // Detach detaches from all threads of the processes
 func (p *TracedProgram) Detach() error {
 	for _, tid := range p.tids {
-		//log.Println("detaching, process task id", tid)
+		log.Println("detaching, process task id", tid)
 		err := unix.PtraceDetach(tid)
 
 		if err != nil {
@@ -157,7 +158,7 @@ func (p *TracedProgram) Detach() error {
 			}
 		}
 	}
-	//log.Println("Successfully detach and rerun process, pid", p.pid)
+	log.Println("Successfully detach and rerun process, pid", p.pid)
 	return nil
 }
 
@@ -206,9 +207,59 @@ func (p *TracedProgram) Step() error {
 	return p.Wait()
 }
 
-// Mmap runs mmap syscall
+// tryMmap attempts a single mmap syscall with error checking
+func (p *TracedProgram) tryMmap(addr, length, prot, flags, fd, offset uint64) (uint64, error) {
+	log.Printf("[MMAP DEBUG] attempting mmap(): len=%d, prot=%#x, flags=%#x, fd=%d, offset=%d, syscall_nr=%d", length, prot, flags, fd, offset, unix.SYS_MMAP)
+
+	result, err := p.Syscall(unix.SYS_MMAP, addr, length, prot, flags, fd, offset)
+	log.Printf("[MMAP DEBUG] mmap syscall returned: result=%#x, err=%v\n", result, err)
+	if err != nil {
+		return 0, err
+	}
+
+	// check if result indicates error
+	if result == 0 {
+		return 0, fmt.Errorf("mmap returned NULL address")
+	}
+
+	if result > 0xFFFFFFFF00000000 { // likely an error code (negative values in 64-bit)
+		return 0, fmt.Errorf("mmap returned error code: 0x%x", result)
+	}
+
+	return result, nil
+}
+
+// Mmap runs mmap syscall with fallback strategies for arm64
 func (p *TracedProgram) Mmap(length uint64, fd uint64) (uint64, error) {
-	return p.Syscall(unix.SYS_MMAP, 0, length, unix.PROT_READ|unix.PROT_WRITE|unix.PROT_EXEC, unix.MAP_ANON|unix.MAP_PRIVATE, fd, 0)
+	pageSize := uint64(os.Getpagesize())
+	alignedLength := (length + pageSize - 1) & ^(pageSize - 1) // round up to page boundary
+
+	log.Printf("[MMAP DEBUG] using aligned len=%d instead of original %d", alignedLength, length)
+
+	// Strategy 1: standard mmap call (size aligned)
+	result, err := p.tryMmap(0, alignedLength, unix.PROT_READ|unix.PROT_WRITE|unix.PROT_EXEC, unix.MAP_ANON|unix.MAP_PRIVATE, fd, 0)
+	if err == nil && result != 0 {
+		log.Printf("[MMAP DEBUG] strategy 1 (standard) succeeded: address=%#x", result)
+		return result, nil
+	}
+	log.Printf("[MMAP DEBUG] strategy 1 failed: %v, result=0x%x", err, result)
+
+	// Strategy 2: larger allocation (2 pages minimum)
+	largerLength := alignedLength
+	if largerLength < 2*pageSize {
+		largerLength = 2 * pageSize
+	}
+	result, err = p.tryMmap(0, largerLength, unix.PROT_READ|unix.PROT_WRITE|unix.PROT_EXEC, unix.MAP_ANON|unix.MAP_PRIVATE, fd, 0)
+	if err == nil && result != 0 {
+		log.Printf("[MMAP DEBUG] strategy 2 (larger allocation) succeeded: address=%#x, allocated=%d", result, largerLength)
+		return result, nil
+	}
+	log.Printf("[MMAP DEBUG] strategy 2 failed: %v, result=0x%x", err, result)
+
+	// TODO: Strategy 3: map without EXEC and enable it with MPROTECT?
+
+	// all strategies failed
+	return 0, fmt.Errorf("all mmap strategies failed")
 }
 
 // ReadSlice reads from addr and return a slice
@@ -341,6 +392,8 @@ func (p *TracedProgram) MmapSlice(slice []byte) (*Entry, error) {
 
 // FindSymbolInEntry finds symbol in entry through parsing elf
 func (p *TracedProgram) FindSymbolInEntry(symbolName string, entry *Entry) (uint64, uint64, error) {
+	log.Printf("[SYMBOL DEBUG] looking for symbol '%s'", symbolName)
+
 	libBuffer, err := p.GetLibBuffer(entry)
 	if err != nil {
 		return 0, 0, err
@@ -357,6 +410,7 @@ func (p *TracedProgram) FindSymbolInEntry(symbolName string, entry *Entry) (uint
 	for _, prog := range vdsoElf.Progs {
 		if prog.Type == elf.PT_LOAD {
 			loadOffset = prog.Vaddr - prog.Off
+			log.Printf("[SYMBOL DEBUG] loadOffset=%#x", loadOffset)
 
 			// break here is enough for vdso
 			break
@@ -368,13 +422,37 @@ func (p *TracedProgram) FindSymbolInEntry(symbolName string, entry *Entry) (uint
 		return 0, 0, err
 	}
 	for _, symbol := range symbols {
-		if symbol.Name == symbolName {
-			offset := symbol.Value
+		offset := symbol.Value
+		location := entry.StartAddress + (offset - loadOffset)
+		log.Printf("[SYMBOL DEBUG] seeing '%s' with len=%d and offset=%#x at %#x", symbol.Name, symbol.Size, offset, location)
 
-			return entry.StartAddress + (offset - loadOffset), symbol.Size, nil
+		// try direct match first
+		if symbol.Name == symbolName {
+			log.Printf("[SYMBOL DEBUG] found '%s' at %#x", symbol.Name, location)
+			return location, symbol.Size, nil
 		}
+
+		// on arm64 try with "__kernel_" prefix
+		if runtime.GOARCH == "arm64" {
+			targetSymbol := "__kernel_" + symbolName
+			if symbol.Name == targetSymbol {
+				log.Printf("[SYMBOL DEBUG] found '%s' as '%s' at %#x", symbolName, symbol.Name, location)
+				return location, symbol.Size, nil
+			}
+		}
+
+		/*
+			TODO: should we try "__vdso_" prefix as well? On amd64 you could get e.g. this:
+			2025/06/07 08:57:15 ptrace_linux.go:395: [SYMBOL DEBUG] looking for symbol 'gettimeofday'
+			2025/06/07 08:57:15 ptrace_linux.go:413: [SYMBOL DEBUG] loadOffset=0x0
+			2025/06/07 08:57:15 ptrace_linux.go:425: [SYMBOL DEBUG] found 'clock_gettime' with len=5 at 0xe40
+			2025/06/07 08:57:15 ptrace_linux.go:425: [SYMBOL DEBUG] found '__vdso_gettimeofday' with len=5 at 0xe00
+			2025/06/07 08:57:15 ptrace_linux.go:425: [SYMBOL DEBUG] found 'clock_getres' with len=117 at 0xe50
+			2025/06/07 08:57:15 ptrace_linux.go:425: [SYMBOL DEBUG] found '__vdso_clock_getres' with len=117 at 0xe50
+			2025/06/07 08:57:15 ptrace_linux.go:425: [SYMBOL DEBUG] found 'gettimeofday' with len=5 at 0xe00
+		*/
 	}
-	return 0, 0, fmt.Errorf("cannot find symbol")
+	return 0, 0, fmt.Errorf("cannot find symbol '%s'", symbolName)
 }
 
 // WriteUint64ToAddr writes uint64 to addr
