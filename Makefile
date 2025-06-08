@@ -183,8 +183,13 @@ build_x86_64: build_amd64
 build_aarch64: build_arm64
 build_native: build_$(ARCH)
 
+.PHONY: test
+test: ## Run tests
+	make -C test test
+
 .PHONY: clean
 clean: ## Clean up
 	rm -f fakeclock/*.o
 	rm -rf bin
 	$(MAKE) -C example clean
+	$(MAKE) -C test clean
